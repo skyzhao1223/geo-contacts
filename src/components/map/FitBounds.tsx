@@ -26,7 +26,7 @@ export function FitBounds({
       map.setView(positions[0], 10)
       return
     }
-    map.fitBounds(L.latLngBounds(positions), { padding: [40, 40], maxZoom: 4 })
+    map.fitBounds(L.latLngBounds(positions), { padding: [40, 40], maxZoom: 3 })
   }, [map, positions, resetKey])
 
   return null

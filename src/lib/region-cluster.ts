@@ -24,69 +24,98 @@ export interface RegionCluster {
   members: RegionPoint[]
 }
 
+/** 比例尺 → 聚合维度（闭开区间，保证同级维度唯一） */
+export const REGION_ZOOM_BANDS: ReadonlyArray<{
+  level: RegionLevel
+  minZoom: number
+  maxZoom: number
+  label: string
+}> = [
+  { level: 'country', minZoom: 2, maxZoom: 4, label: '按国家聚合' },
+  { level: 'province', minZoom: 4, maxZoom: 7, label: '按省/州聚合' },
+  { level: 'city', minZoom: 7, maxZoom: 11, label: '按城市聚合' },
+  { level: 'person', minZoom: 11, maxZoom: 19, label: '显示个人' },
+]
+
 function normalizePart(value?: string): string | undefined {
   const trimmed = value?.trim()
   return trimmed || undefined
 }
 
+function isChina(country: string): boolean {
+  return country === '中国' || country === 'China'
+}
+
+/** 省/州槽位：缺省时用城市填槽，仍属同一「省/州」维度，不降级到国家或升级到城市键 */
+function admin1Slot(location: Location): string {
+  return (
+    normalizePart(location.province) ??
+    normalizePart(location.city) ??
+    '未标注省/州'
+  )
+}
+
+/** 城市槽位：缺省时用区或占位，仍属同一「城市」维度 */
+function admin2Slot(location: Location): string {
+  return (
+    normalizePart(location.city) ??
+    normalizePart(location.district) ??
+    '未标注城市'
+  )
+}
+
+function countrySlot(location: Location): string {
+  return normalizePart(location.country) ?? '未知地区'
+}
+
 /** 根据缩放级别决定聚合粒度 */
 export function regionLevelForZoom(zoom: number): RegionLevel {
-  if (zoom < 4) return 'country'
-  if (zoom < 7) return 'province'
-  if (zoom < 11) return 'city'
+  for (const band of REGION_ZOOM_BANDS) {
+    if (zoom >= band.minZoom && zoom < band.maxZoom) {
+      return band.level
+    }
+  }
   return 'person'
+}
+
+export function regionLevelLabel(level: RegionLevel): string {
+  return REGION_ZOOM_BANDS.find((band) => band.level === level)?.label ?? level
 }
 
 /**
  * 生成地区聚合键与标题。
- * 缺省字段时向上回退（无市则用省，无省则用国家）。
+ * 同一 level 下键前缀固定，禁止跨维度回退（country/province/city 不混用）。
  */
 export function resolveRegionKey(
   location: Location,
   level: RegionLevel,
 ): { key: string; title: string } {
-  const country = normalizePart(location.country) ?? '未知地区'
-  const province = normalizePart(location.province)
-  const city = normalizePart(location.city)
+  const country = countrySlot(location)
 
   if (level === 'country') {
     return { key: `country:${country}`, title: country }
   }
 
   if (level === 'province') {
-    if (province) {
-      return {
-        key: `province:${country}|${province}`,
-        title: country === '中国' || country === 'China' ? province : `${province}, ${country}`,
-      }
+    const province = admin1Slot(location)
+    return {
+      key: `province:${country}|${province}`,
+      title: isChina(country) ? province : `${province}, ${country}`,
     }
-    if (city) {
-      return {
-        key: `city:${country}|${city}`,
-        title: country === '中国' || country === 'China' ? city : `${city}, ${country}`,
-      }
-    }
-    return { key: `country:${country}`, title: country }
   }
 
   if (level === 'city') {
-    if (city) {
-      const title =
-        province && (country === '中国' || country === 'China')
-          ? `${city}`
-          : [city, province, country].filter(Boolean).join(', ')
-      return {
-        key: `city:${country}|${province ?? ''}|${city}`,
-        title,
-      }
+    const province = admin1Slot(location)
+    const city = admin2Slot(location)
+    const title = isChina(country)
+      ? city
+      : [city, province !== city ? province : undefined, country]
+          .filter(Boolean)
+          .join(', ')
+    return {
+      key: `city:${country}|${province}|${city}`,
+      title,
     }
-    if (province) {
-      return {
-        key: `province:${country}|${province}`,
-        title: country === '中国' || country === 'China' ? province : `${province}, ${country}`,
-      }
-    }
-    return { key: `country:${country}`, title: country }
   }
 
   return { key: `person`, title: '' }
@@ -100,15 +129,26 @@ function averagePosition(points: RegionPoint[]): [number, number] {
   return [lat, lng]
 }
 
-/** 按当前缩放对应的地区级别聚合标记点 */
+/** 进入下一聚合维度所需的最小缩放 */
+export function nextRegionZoom(level: RegionLevel): number {
+  if (level === 'country') return 4
+  if (level === 'province') return 7
+  if (level === 'city') return 11
+  return 12
+}
+
+/**
+ * 按当前缩放对应的地区级别聚合。
+ * country/province/city 级一律输出地区气泡（含 1 人），不与个人头像混显，保证同比例尺维度一致。
+ */
 export function clusterByRegion(
   points: RegionPoint[],
   zoom: number,
-): { clusters: RegionCluster[]; singles: RegionPoint[] } {
+): { clusters: RegionCluster[]; singles: RegionPoint[]; level: RegionLevel } {
   const level = regionLevelForZoom(zoom)
 
   if (level === 'person' || points.length === 0) {
-    return { clusters: [], singles: points }
+    return { clusters: [], singles: points, level }
   }
 
   const groups = new Map<string, RegionPoint[]>()
@@ -123,14 +163,8 @@ export function clusterByRegion(
   }
 
   const clusters: RegionCluster[] = []
-  const singles: RegionPoint[] = []
 
   for (const [key, members] of groups) {
-    if (members.length === 1) {
-      singles.push(members[0])
-      continue
-    }
-
     clusters.push({
       key,
       level,
@@ -142,12 +176,12 @@ export function clusterByRegion(
     })
   }
 
-  return { clusters, singles }
+  clusters.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title, 'zh'))
+
+  return { clusters, singles: [], level }
 }
 
-/** 点击地区聚合后建议的目标缩放 */
-export function zoomAfterRegionExpand(level: RegionLevel, currentZoom: number): number {
-  if (level === 'country') return Math.max(currentZoom + 1, 4.5)
-  if (level === 'province') return Math.max(currentZoom + 1, 7.5)
-  return Math.max(currentZoom + 1, 11.5)
+/** 点击地区聚合后进入下一维度的目标缩放 */
+export function zoomAfterRegionExpand(level: RegionLevel, _currentZoom: number): number {
+  return nextRegionZoom(level)
 }

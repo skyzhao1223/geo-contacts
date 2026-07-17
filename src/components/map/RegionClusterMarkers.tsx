@@ -24,11 +24,22 @@ export function RegionClusterMarkers({ clusters }: RegionClusterMarkersProps) {
             click: () => {
               const bounds = L.latLngBounds(cluster.bounds)
               const targetZoom = zoomAfterRegionExpand(cluster.level, map.getZoom())
-              map.fitBounds(bounds.pad(0.35), {
+              // 强制进入下一维度比例尺，避免 fitBounds 停在同一维度带内
+              if (cluster.bounds.length === 1 || bounds.getNorthEast().equals(bounds.getSouthWest())) {
+                map.setView(cluster.position, targetZoom, { animate: true })
+                return
+              }
+              map.fitBounds(bounds.pad(0.2), {
                 maxZoom: targetZoom,
                 padding: [48, 48],
                 animate: true,
               })
+              // fitBounds 可能因范围过大停在更低 zoom；保证至少进入下一维度
+              window.setTimeout(() => {
+                if (map.getZoom() < targetZoom) {
+                  map.setZoom(targetZoom)
+                }
+              }, 280)
             },
           }}
         >
