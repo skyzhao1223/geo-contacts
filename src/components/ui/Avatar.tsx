@@ -1,4 +1,5 @@
-import { getAvatarGradient } from '../../lib/avatar-color'
+import { useEffect, useState } from 'react'
+import { getAvatarGradient, getAvatarInitials } from '../../lib/avatar-color'
 
 interface AvatarProps {
   name: string
@@ -15,17 +16,33 @@ const sizes = {
 }
 
 export function Avatar({ name, src, size = 'md', online, className = '' }: AvatarProps) {
-  const initial = name.slice(0, 1) || '?'
+  const [failed, setFailed] = useState(false)
+  const initials = getAvatarInitials(name)
+  const showImage = Boolean(src) && !failed
+
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
 
   return (
     <div
       className={`avatar ${sizes[size]} ${className}`.trim()}
-      style={!src ? { background: getAvatarGradient(name) } : undefined}
+      style={{ background: getAvatarGradient(name) }}
+      aria-label={name}
     >
-      {src ? (
-        <img src={src} alt={name} className="avatar-img" loading="lazy" />
+      {showImage ? (
+        <img
+          src={src}
+          alt={name}
+          className="avatar-img"
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       ) : (
-        <span className="avatar-fallback">{initial}</span>
+        <span className="avatar-fallback" aria-hidden="true">
+          {initials}
+        </span>
       )}
       {online != null && (
         <span className={`avatar-status ${online ? 'avatar-status-on' : ''}`} />

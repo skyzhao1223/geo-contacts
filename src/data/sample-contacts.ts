@@ -220,7 +220,7 @@ export function createSampleKinships(contacts: Contact[]): Kinship[] {
 /** 新用户注册后导入的示例联系人，已预置坐标、头像与族谱成员 */
 export function createSampleContacts(): Contact[] {
   const family = createSampleFamilyContacts()
-  const others = [
+  const domestic = [
     person('张明', {
       phones: ['13800001001'],
       emails: ['zhangming@example.com'],
@@ -302,37 +302,254 @@ export function createSampleContacts(): Contact[] {
       birthplace: loc('陕西', '西安', 34.3416, 108.9398),
       currentLocation: loc('福建', '厦门', 24.4798, 118.0894, '思明区'),
     }),
-    person('Emily Chen', {
+  ]
+
+  return [...family, ...domestic, ...createSampleGlobalContacts()]
+}
+
+/** 海外示例：现居地覆盖各大洲，便于地图全球视角演示 */
+export function createSampleGlobalContacts(): Contact[] {
+  const g = (
+    id: string,
+    name: string,
+    extra: Omit<Partial<Contact>, 'name' | 'avatar' | 'id'> & { tags?: string[] },
+  ) =>
+    person(name, {
+      id: `sample-global-${id}`,
+      tags: [...new Set(['示例', '海外', ...(extra.tags ?? [])])],
+      ...extra,
+    })
+
+  return [
+    // 北美
+    g('emily-chen', 'Emily Chen', {
       phones: ['+1-415-555-0101'],
       emails: ['emily.chen@example.com'],
       company: 'Stripe',
       title: 'Product Designer',
-      tags: ['示例', '海外', '同学'],
-      notes: '本科同学，现居旧金山',
+      tags: ['同学'],
+      notes: '本科同学，现居旧金山湾区',
       hometown: locIntl('Taipei', 'Taiwan', 25.033, 121.5654),
       birthplace: locIntl('Taipei', 'Taiwan', 25.033, 121.5654),
       currentLocation: locIntl('San Francisco', 'United States', 37.7749, -122.4194, 'California'),
     }),
-    person('Kenji Sato', {
+    g('marcus-johnson', 'Marcus Johnson', {
+      phones: ['+1-212-555-0142'],
+      emails: ['marcus.j@example.com'],
+      company: 'Bloomberg',
+      title: 'Data Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Chicago', 'United States', 41.8781, -87.6298, 'Illinois'),
+      currentLocation: locIntl('New York', 'United States', 40.7128, -74.006, 'New York'),
+    }),
+    g('sofia-ramirez', 'Sofía Ramírez', {
+      phones: ['+1-416-555-0198'],
+      company: 'Shopify',
+      title: 'UX Researcher',
+      tags: ['朋友'],
+      hometown: locIntl('Mexico City', 'Mexico', 19.4326, -99.1332),
+      currentLocation: locIntl('Toronto', 'Canada', 43.6532, -79.3832, 'Ontario'),
+    }),
+
+    // 南美
+    g('lucas-oliveira', 'Lucas Oliveira', {
+      phones: ['+55-11-95555-0103'],
+      company: 'Nubank',
+      title: 'Mobile Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Belo Horizonte', 'Brazil', -19.9167, -43.9345),
+      currentLocation: locIntl('São Paulo', 'Brazil', -23.5505, -46.6333),
+    }),
+    g('camila-rossi', 'Camila Rossi', {
+      phones: ['+54-11-5555-0188'],
+      company: 'Mercado Libre',
+      title: 'Product Manager',
+      tags: ['朋友'],
+      hometown: locIntl('Córdoba', 'Argentina', -31.4201, -64.1888),
+      currentLocation: locIntl('Buenos Aires', 'Argentina', -34.6037, -58.3816),
+    }),
+
+    // 欧洲
+    g('sophie-martin', 'Sophie Martin', {
+      phones: ['+33-6-12-34-56-78'],
+      company: 'Spotify',
+      tags: ['朋友'],
+      hometown: locIntl('Lyon', 'France', 45.764, 4.8357),
+      currentLocation: locIntl('London', 'United Kingdom', 51.5074, -0.1278),
+    }),
+    g('lars-bergstrom', 'Lars Bergström', {
+      phones: ['+46-70-555-0121'],
+      company: 'Spotify',
+      title: 'Backend Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Gothenburg', 'Sweden', 57.7089, 11.9746),
+      currentLocation: locIntl('Stockholm', 'Sweden', 59.3293, 18.0686),
+    }),
+    g('anna-mueller', 'Anna Müller', {
+      phones: ['+49-30-555-0177'],
+      company: 'SAP',
+      title: 'Solutions Consultant',
+      tags: ['同学'],
+      hometown: locIntl('Munich', 'Germany', 48.1351, 11.582),
+      currentLocation: locIntl('Berlin', 'Germany', 52.52, 13.405),
+    }),
+    g('diego-fernandez', 'Diego Fernández', {
+      phones: ['+34-91-555-0133'],
+      company: 'Cabify',
+      title: 'Growth Lead',
+      tags: ['朋友'],
+      hometown: locIntl('Valencia', 'Spain', 39.4699, -0.3763),
+      currentLocation: locIntl('Madrid', 'Spain', 40.4168, -3.7038),
+    }),
+    g('irina-petrova', 'Irina Petrova', {
+      phones: ['+7-495-555-0166'],
+      company: 'Yandex',
+      title: 'ML Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Saint Petersburg', 'Russia', 59.9311, 30.3609),
+      currentLocation: locIntl('Moscow', 'Russia', 55.7558, 37.6173),
+    }),
+
+    // 非洲
+    g('amara-okafor', 'Amara Okafor', {
+      phones: ['+234-801-555-0109'],
+      company: 'Flutterwave',
+      title: 'Fintech Analyst',
+      tags: ['朋友'],
+      hometown: locIntl('Enugu', 'Nigeria', 6.5244, 7.5105),
+      currentLocation: locIntl('Lagos', 'Nigeria', 6.5244, 3.3792),
+    }),
+    g('thabo-molefe', 'Thabo Molefe', {
+      phones: ['+27-21-555-0144'],
+      company: 'Naspers',
+      title: 'Security Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Johannesburg', 'South Africa', -26.2041, 28.0473),
+      currentLocation: locIntl('Cape Town', 'South Africa', -33.9249, 18.4241),
+    }),
+    g('aisha-hassan', 'Aisha Hassan', {
+      phones: ['+254-712-555-0155'],
+      company: 'Safaricom',
+      title: 'Product Designer',
+      tags: ['同学'],
+      hometown: locIntl('Mombasa', 'Kenya', -4.0435, 39.6682),
+      currentLocation: locIntl('Nairobi', 'Kenya', -1.2921, 36.8219),
+    }),
+    g('youssef-nabil', 'Youssef Nabil', {
+      phones: ['+20-100-555-0120'],
+      company: 'Careem',
+      title: 'iOS Engineer',
+      tags: ['朋友'],
+      hometown: locIntl('Alexandria', 'Egypt', 31.2001, 29.9187),
+      currentLocation: locIntl('Cairo', 'Egypt', 30.0444, 31.2357),
+    }),
+
+    // 中东
+    g('layla-al-rashid', 'Layla Al-Rashid', {
+      phones: ['+971-50-555-0180'],
+      company: 'Emirates NBD',
+      title: 'Risk Analyst',
+      tags: ['同事'],
+      hometown: locIntl('Riyadh', 'Saudi Arabia', 24.7136, 46.6753),
+      currentLocation: locIntl('Dubai', 'United Arab Emirates', 25.2048, 55.2708),
+    }),
+    g('noa-cohen', 'Noa Cohen', {
+      phones: ['+972-50-555-0112'],
+      company: 'Wix',
+      title: 'Frontend Engineer',
+      tags: ['朋友'],
+      hometown: locIntl('Haifa', 'Israel', 32.794, 34.9896),
+      currentLocation: locIntl('Tel Aviv', 'Israel', 32.0853, 34.7818),
+    }),
+
+    // 南亚 / 东南亚
+    g('arjun-mehta', 'Arjun Mehta', {
+      phones: ['+91-98765-55011'],
+      company: 'Flipkart',
+      title: 'Staff Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Pune', 'India', 18.5204, 73.8567),
+      currentLocation: locIntl('Bengaluru', 'India', 12.9716, 77.5946),
+    }),
+    g('priya-sharma', 'Priya Sharma', {
+      phones: ['+91-98200-55022'],
+      company: 'Razorpay',
+      title: 'Product Manager',
+      tags: ['同学'],
+      hometown: locIntl('Jaipur', 'India', 26.9124, 75.7873),
+      currentLocation: locIntl('Mumbai', 'India', 19.076, 72.8777),
+    }),
+    g('wei-ling-tan', 'Wei Ling Tan', {
+      phones: ['+65-9123-5501'],
+      company: 'Grab',
+      title: 'Data Scientist',
+      tags: ['朋友'],
+      hometown: locIntl('Penang', 'Malaysia', 5.4141, 100.3288),
+      currentLocation: locIntl('Singapore', 'Singapore', 1.3521, 103.8198),
+    }),
+    g('siriwan-chay', 'Siriwan Chaiyawan', {
+      phones: ['+66-81-555-0134'],
+      company: 'LINE MAN',
+      title: 'Marketing Lead',
+      tags: ['朋友'],
+      hometown: locIntl('Chiang Mai', 'Thailand', 18.7883, 98.9853),
+      currentLocation: locIntl('Bangkok', 'Thailand', 13.7563, 100.5018),
+    }),
+    g('budi-santoso', 'Budi Santoso', {
+      phones: ['+62-812-555-0167'],
+      company: 'Gojek',
+      title: 'Android Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Surabaya', 'Indonesia', -7.2575, 112.7521),
+      currentLocation: locIntl('Jakarta', 'Indonesia', -6.2088, 106.8456),
+    }),
+
+    // 东亚
+    g('kenji-sato', 'Kenji Sato', {
       phones: ['+81-90-1234-5678'],
       emails: ['kenji.sato@example.com'],
       company: 'Mercari',
       title: 'Software Engineer',
-      tags: ['示例', '海外', '同事'],
+      tags: ['同事'],
       hometown: locIntl('Osaka', 'Japan', 34.6937, 135.5023),
       birthplace: locIntl('Osaka', 'Japan', 34.6937, 135.5023),
       currentLocation: locIntl('Tokyo', 'Japan', 35.6762, 139.6503),
     }),
-    person('Sophie Martin', {
-      phones: ['+33-6-12-34-56-78'],
-      company: 'Spotify',
-      tags: ['示例', '海外', '朋友'],
-      hometown: locIntl('Lyon', 'France', 45.764, 4.8357),
-      currentLocation: locIntl('London', 'United Kingdom', 51.5074, -0.1278),
+    g('min-ji-park', 'Min-ji Park', {
+      phones: ['+82-10-5555-0190'],
+      company: 'Naver',
+      title: 'Content Strategist',
+      tags: ['同学'],
+      hometown: locIntl('Busan', 'South Korea', 35.1796, 129.0756),
+      currentLocation: locIntl('Seoul', 'South Korea', 37.5665, 126.978),
+    }),
+    g('ching-wan-ho', 'Ching Wan Ho', {
+      phones: ['+852-9123-5508'],
+      company: 'Cathay Pacific',
+      title: 'Ops Analyst',
+      tags: ['朋友'],
+      hometown: locIntl('Macau', 'Macao', 22.1987, 113.5439),
+      currentLocation: locIntl('Hong Kong', 'Hong Kong', 22.3193, 114.1694),
+    }),
+
+    // 大洋洲
+    g('oliver-bennett', 'Oliver Bennett', {
+      phones: ['+61-412-555-015'],
+      company: 'Atlassian',
+      title: 'Platform Engineer',
+      tags: ['同事'],
+      hometown: locIntl('Melbourne', 'Australia', -37.8136, 144.9631),
+      currentLocation: locIntl('Sydney', 'Australia', -33.8688, 151.2093),
+    }),
+    g('maia-ngata', 'Maia Ngata', {
+      phones: ['+64-21-555-017'],
+      company: 'Xero',
+      title: 'Customer Success',
+      tags: ['朋友'],
+      hometown: locIntl('Christchurch', 'New Zealand', -43.5321, 172.6362),
+      currentLocation: locIntl('Auckland', 'New Zealand', -36.8509, 174.7645),
     }),
   ]
-
-  return [...family, ...others]
 }
 
 export const SAMPLE_PROFILE = {

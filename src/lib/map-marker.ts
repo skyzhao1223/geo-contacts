@@ -1,7 +1,7 @@
 import L from 'leaflet'
 import 'leaflet.markercluster'
 
-import { getAvatarGradient } from './avatar-color'
+import { getAvatarGradient, getAvatarInitials } from './avatar-color'
 
 const MARKER_SIZE = 42
 
@@ -18,11 +18,13 @@ export function createAvatarMarkerIcon(
   avatar?: string,
   online?: boolean | null,
 ): L.DivIcon {
-  const initial = escapeHtml(name.slice(0, 1) || '?')
+  const initials = escapeHtml(getAvatarInitials(name))
   const safeName = escapeHtml(name)
+  const gradient = escapeHtml(getAvatarGradient(name))
+  const fallback = `<span class="map-marker-avatar-fallback" style="background:${gradient}">${initials}</span>`
   const inner = avatar
-    ? `<img src="${escapeHtml(avatar)}" alt="${safeName}" class="map-marker-avatar-img" loading="lazy" />`
-    : `<span class="map-marker-avatar-fallback" style="background:${escapeHtml(getAvatarGradient(name))}">${initial}</span>`
+    ? `${fallback}<img src="${escapeHtml(avatar)}" alt="${safeName}" class="map-marker-avatar-img" loading="lazy" onerror="this.remove()" />`
+    : fallback
 
   const statusDot =
     online == null
@@ -40,6 +42,21 @@ export function createAvatarMarkerIcon(
     iconSize: [MARKER_SIZE, MARKER_SIZE],
     iconAnchor: [MARKER_SIZE / 2, MARKER_SIZE / 2],
     popupAnchor: [0, -MARKER_SIZE / 2 - 4],
+  })
+}
+
+/** 地区聚合气泡：地区名 + 人数 */
+export function createRegionClusterIcon(title: string, count: number): L.DivIcon {
+  const size = count >= 50 ? 'lg' : count >= 10 ? 'md' : 'sm'
+  const width = size === 'lg' ? 108 : size === 'md' ? 96 : 84
+  const height = size === 'lg' ? 52 : size === 'md' ? 48 : 44
+  const safeTitle = escapeHtml(title)
+
+  return L.divIcon({
+    html: `<div class="map-region-cluster map-region-cluster-${size}"><span class="map-region-cluster-count">${count}</span><span class="map-region-cluster-title">${safeTitle}</span></div>`,
+    className: 'map-cluster-icon',
+    iconSize: L.point(width, height),
+    iconAnchor: [width / 2, height / 2],
   })
 }
 

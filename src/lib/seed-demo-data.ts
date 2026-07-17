@@ -7,6 +7,7 @@ import {
 import {
   createSampleContacts,
   createSampleFamilyContacts,
+  createSampleGlobalContacts,
   createSampleKinships,
   getSampleProfileAvatar,
   SAMPLE_PROFILE,
@@ -16,8 +17,9 @@ import { api } from './api'
 
 const seededKey = (userId: string) => `geo-contacts-demo-seeded:${userId}`
 const avatarBackfillKey = (userId: string) => `geo-contacts-demo-avatars:${userId}`
-const avatarGenderBackfillKey = (userId: string) => `geo-contacts-demo-avatar-gender:v1:${userId}`
+const avatarGenderBackfillKey = (userId: string) => `geo-contacts-demo-avatar-gender:v2:${userId}`
 const kinshipBackfillKey = (userId: string) => `geo-contacts-demo-kinships:${userId}`
+const globalBackfillKey = (userId: string) => `geo-contacts-demo-global:v1:${userId}`
 const hintKey = 'geo-contacts-show-demo-hint'
 
 export function shouldShowDemoHint(): boolean {
@@ -179,6 +181,33 @@ export async function backfillSampleKinships(userId: string): Promise<number> {
   return added + toAdd.length
 }
 
+/** 为已有示例数据用户补齐全球联系人（不覆盖用户自建数据） */
+export async function backfillSampleGlobalContacts(userId: string): Promise<number> {
+  if (localStorage.getItem(globalBackfillKey(userId))) {
+    return 0
+  }
+
+  const existing = await getAllContacts()
+  if (existing.length === 0) {
+    localStorage.setItem(globalBackfillKey(userId), '1')
+    return 0
+  }
+
+  const byId = new Set(existing.map((c) => c.id))
+  const byName = new Set(existing.map((c) => c.name))
+  const toAdd = createSampleGlobalContacts().filter(
+    (contact) => !byId.has(contact.id) && !byName.has(contact.name),
+  )
+
+  if (toAdd.length > 0) {
+    await saveContacts(toAdd)
+    window.dispatchEvent(new Event('geo-contacts-updated'))
+  }
+
+  localStorage.setItem(globalBackfillKey(userId), '1')
+  return toAdd.length
+}
+
 export async function seedDemoDataIfNeeded(
   userId: string,
   displayName?: string,
@@ -186,6 +215,7 @@ export async function seedDemoDataIfNeeded(
   await backfillSampleAvatars(userId)
   await backfillSampleAvatarGender(userId)
   await backfillSampleKinships(userId)
+  await backfillSampleGlobalContacts(userId)
 
   if (localStorage.getItem(seededKey(userId))) {
     return 0
@@ -195,6 +225,7 @@ export async function seedDemoDataIfNeeded(
   if (existing.length > 0) {
     localStorage.setItem(seededKey(userId), '1')
     localStorage.setItem(kinshipBackfillKey(userId), '1')
+    localStorage.setItem(globalBackfillKey(userId), '1')
     return 0
   }
 
@@ -205,6 +236,7 @@ export async function seedDemoDataIfNeeded(
   localStorage.setItem(avatarBackfillKey(userId), '1')
   localStorage.setItem(avatarGenderBackfillKey(userId), '1')
   localStorage.setItem(kinshipBackfillKey(userId), '1')
+  localStorage.setItem(globalBackfillKey(userId), '1')
 
   localStorage.setItem(seededKey(userId), '1')
   sessionStorage.setItem(hintKey, '1')
@@ -224,6 +256,7 @@ export async function forceSeedDemoData(
   localStorage.setItem(avatarBackfillKey(userId), '1')
   localStorage.setItem(avatarGenderBackfillKey(userId), '1')
   localStorage.setItem(kinshipBackfillKey(userId), '1')
+  localStorage.setItem(globalBackfillKey(userId), '1')
   sessionStorage.setItem(hintKey, '1')
   window.dispatchEvent(new Event('geo-contacts-updated'))
   return samples.length

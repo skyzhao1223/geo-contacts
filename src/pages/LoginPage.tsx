@@ -1,17 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Map, Users, Sparkles } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/lib/api'
+import {
+  hasZhaoskyAuthBridge,
+  readSiteSession,
+  redirectToSiteLogin,
+} from '@/lib/site-auth'
 import { AuthLayout } from '@/components/auth'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, loginWithSiteSession, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState(false)
+  const siteSession = readSiteSession()
+  const showSiteLogin = hasZhaoskyAuthBridge() || Boolean(siteSession)
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/', { replace: true })
+    }
+  }, [authLoading, user, navigate])
 
   return (
     <AuthLayout
@@ -23,13 +37,57 @@ export function LoginPage() {
         { icon: <Sparkles size={18} />, text: '族谱关系与好友私信' },
       ]}
       panelTitle="欢迎回来"
-      panelDescription="登录后同步在线状态，并把平台好友关联到本地通讯录。"
+      panelDescription={
+        showSiteLogin
+          ? '已接入站内账号：登录 zhaosky.cn 后即可直接进入。'
+          : '登录后同步在线状态，并把平台好友关联到本地通讯录。'
+      }
       footer={
         <p className="auth-switch">
-          还没有账号？<Link to="/register">立即注册</Link>
+          还没有账号？
+          {showSiteLogin ? (
+            <a href="/register">去站内注册</a>
+          ) : (
+            <Link to="/register">立即注册</Link>
+          )}
         </p>
       }
     >
+      {showSiteLogin && (
+        <div className="form-grid" style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className="button-primary"
+            disabled={ssoLoading}
+            onClick={() => {
+              setSsoLoading(true)
+              setError('')
+              void (async () => {
+                try {
+                  if (siteSession?.username) {
+                    await loginWithSiteSession()
+                    navigate('/')
+                    return
+                  }
+                  redirectToSiteLogin()
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : '站内登录失败')
+                } finally {
+                  setSsoLoading(false)
+                }
+              })()
+            }}
+          >
+            {ssoLoading
+              ? '正在进入...'
+              : siteSession?.username
+                ? `以 ${siteSession.displayName || siteSession.username} 进入`
+                : '使用站内账号登录'}
+          </button>
+          <div className="auth-divider">或使用邮箱密码</div>
+        </div>
+      )}
+
       <form
         className="form-grid"
         onSubmit={(event) => {

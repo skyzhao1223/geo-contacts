@@ -76,6 +76,14 @@ export const api = {
     })
   },
 
+  /** 用站内 dashboard_session Cookie 换本应用 JWT */
+  sso() {
+    return request<{ token: string; user: UserProfile }>('api/auth/sso', {
+      method: 'POST',
+      credentials: 'include',
+    })
+  },
+
   me() {
     return request<{ user: UserProfile }>('api/auth/me')
   },

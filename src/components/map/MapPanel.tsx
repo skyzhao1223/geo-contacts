@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
+import type { DivIcon } from 'leaflet'
 import { MapPin, Users } from 'lucide-react'
 import type { LocationField } from '@/types/contact'
 import { LOCATION_FIELD_LABELS, getContactLocation, locationToText } from '@/types/contact'
 import { geocodeContactsLocations } from '@/lib/geocode'
-import { createAvatarMarkerIcon, createClusterIcon } from '@/lib/map-marker'
+import { createAvatarMarkerIcon } from '@/lib/map-marker'
+import {
+  clusterByRegion,
+  type RegionLevel,
+  type RegionPoint,
+} from '@/lib/region-cluster'
 import { getLinkedOnline } from '@/lib/presence'
 import { useContacts } from '@/context/ContactsContext'
 import { usePresenceState } from '@/context/PresenceContext'
@@ -13,7 +18,61 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { FitBounds } from './FitBounds'
 import { MapPopup } from './MapPopup'
-import 'leaflet.markercluster/dist/MarkerCluster.css'
+import { MapZoomReporter } from './MapZoomReporter'
+import { RegionClusterMarkers } from './RegionClusterMarkers'
+import { useMapZoom } from './useMapZoom'
+
+const REGION_LEVEL_HINT: Record<RegionLevel, string> = {
+  country: '按国家聚合',
+  province: '按省/州聚合',
+  city: '按城市聚合',
+  person: '显示个人',
+}
+
+type MapPoint = RegionPoint & { icon: DivIcon }
+
+function MapMarkersLayer({ points }: { points: MapPoint[] }) {
+  const zoom = useMapZoom(2)
+  const { clusters, singles } = useMemo(
+    () =>
+      clusterByRegion(
+        points.map(({ icon: _icon, ...point }) => point),
+        zoom,
+      ),
+    [points, zoom],
+  )
+
+  const singleIcons = useMemo(() => {
+    const byId = new Map(points.map((point) => [point.id, point.icon]))
+    return singles.map((point) => ({
+      ...point,
+      icon: byId.get(point.id)!,
+    }))
+  }, [points, singles])
+
+  return (
+    <>
+      <RegionClusterMarkers clusters={clusters} />
+      {singleIcons.map((marker) => (
+        <Marker
+          key={`${marker.id}-${marker.online ? 'on' : 'off'}`}
+          position={marker.position}
+          icon={marker.icon}
+        >
+          <Popup>
+            <MapPopup
+              name={marker.name}
+              avatar={marker.avatar}
+              locationLabel={marker.label}
+              tags={marker.tags}
+              online={marker.online ?? undefined}
+            />
+          </Popup>
+        </Marker>
+      ))}
+    </>
+  )
+}
 
 export function MapPanel() {
   const { contacts, saveContactBatch } = useContacts()
@@ -23,6 +82,7 @@ export function MapPanel() {
   const [geocoding, setGeocoding] = useState(false)
   const [progress, setProgress] = useState('')
   const [localContacts, setLocalContacts] = useState(contacts)
+  const [regionLevel, setRegionLevel] = useState<RegionLevel>('country')
 
   useEffect(() => {
     setLocalContacts(contacts)
@@ -48,7 +108,8 @@ export function MapPanel() {
           id: contact.id,
           name: contact.name,
           avatar: contact.avatar,
-          label: locationToText(location),
+          location,
+          label: `${LOCATION_FIELD_LABELS[locationField]}：${locationToText(location)}`,
           tags: contact.tags,
           online,
           icon: createAvatarMarkerIcon(contact.name, contact.avatar, online),
@@ -87,11 +148,13 @@ export function MapPanel() {
     label: LOCATION_FIELD_LABELS[field],
   }))
 
+  const fitKey = `${locationField}:${selectedTag ?? 'all'}:${markers.length}`
+
   return (
     <div className="page-stack">
       <PageHeader
         title="地图分布"
-        description="重叠标记会聚合；关联账号显示在线状态。"
+        description="按国家 → 省/州 → 城市分层聚合；放大或点击气泡展开到下一层。"
         compact
         actions={
           missingCount > 0 ? (
@@ -125,6 +188,7 @@ export function MapPanel() {
                 在线 <strong>{onlineOnMap}</strong>
               </span>
             )}
+            <span className="map-stat-pill map-stat-region">{REGION_LEVEL_HINT[regionLevel]}</span>
           </div>
         </div>
 
@@ -156,34 +220,14 @@ export function MapPanel() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <FitBounds positions={markers.map((marker) => marker.position)} />
-            <MarkerClusterGroup
-              chunkedLoading
-              showCoverageOnHover={false}
-              maxClusterRadius={56}
-              spiderfyOnMaxZoom
-              spiderfyDistanceMultiplier={1.4}
-              disableClusteringAtZoom={16}
-              iconCreateFunction={createClusterIcon}
-            >
-              {markers.map((marker) => (
-                <Marker
-                  key={`${marker.id}-${marker.online ? 'on' : 'off'}`}
-                  position={marker.position}
-                  icon={marker.icon}
-                >
-                  <Popup>
-                    <MapPopup
-                      name={marker.name}
-                      avatar={marker.avatar}
-                      locationLabel={`${LOCATION_FIELD_LABELS[locationField]}：${marker.label}`}
-                      tags={marker.tags}
-                      online={marker.online}
-                    />
-                  </Popup>
-                </Marker>
-              ))}
-            </MarkerClusterGroup>
+            <FitBounds
+              positions={markers.map((marker) => marker.position)}
+              resetKey={fitKey}
+            />
+            <MapZoomReporter
+              onZoomChange={(_zoom, level) => setRegionLevel(level)}
+            />
+            <MapMarkersLayer points={markers} />
           </MapContainer>
         </div>
       </section>
