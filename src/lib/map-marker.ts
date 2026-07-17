@@ -45,18 +45,53 @@ export function createAvatarMarkerIcon(
   })
 }
 
-/** 地区聚合气泡：地区名 + 人数 */
+/** 按地名长度估算气泡尺寸，避免长地名被裁切 */
+function measureRegionChip(title: string, count: number): {
+  width: number
+  height: number
+  multiline: boolean
+} {
+  let textWidth = 0
+  for (const char of title) {
+    textWidth += /[\u3400-\u9fff\uF900-\uFAFF]/.test(char) ? 13 : 7.2
+  }
+
+  const countWidth = 26 + String(count).length * 7
+  const padding = 32
+  const singleLineWidth = Math.ceil(countWidth + textWidth + padding)
+  const maxSingle = 240
+
+  if (singleLineWidth <= maxSingle) {
+    return {
+      width: Math.max(singleLineWidth, 72),
+      height: 44,
+      multiline: false,
+    }
+  }
+
+  const width = Math.min(Math.max(180, Math.ceil(maxSingle)), 300)
+  const textArea = Math.max(width - countWidth - padding, 80)
+  const lines = Math.min(Math.max(Math.ceil(textWidth / textArea), 2), 3)
+  return {
+    width,
+    height: 18 + lines * 17 + 16,
+    multiline: true,
+  }
+}
+
+/** 地区聚合气泡：地区名 + 人数（宽度随地名自适应） */
 export function createRegionClusterIcon(title: string, count: number): L.DivIcon {
   const size = count >= 50 ? 'lg' : count >= 10 ? 'md' : 'sm'
-  const width = size === 'lg' ? 108 : size === 'md' ? 96 : 84
-  const height = size === 'lg' ? 52 : size === 'md' ? 48 : 44
+  const { width, height, multiline } = measureRegionChip(title, count)
   const safeTitle = escapeHtml(title)
+  const wrapClass = multiline ? ' map-region-cluster-wrap' : ''
 
   return L.divIcon({
-    html: `<div class="map-region-cluster map-region-cluster-${size}"><span class="map-region-cluster-count">${count}</span><span class="map-region-cluster-title">${safeTitle}</span></div>`,
-    className: 'map-cluster-icon',
+    html: `<div class="map-region-cluster map-region-cluster-${size}${wrapClass}"><span class="map-region-cluster-count">${count}</span><span class="map-region-cluster-title">${safeTitle}</span></div>`,
+    className: 'map-cluster-icon map-region-cluster-icon',
     iconSize: L.point(width, height),
     iconAnchor: [width / 2, height / 2],
+    popupAnchor: [0, -height / 2 - 4],
   })
 }
 

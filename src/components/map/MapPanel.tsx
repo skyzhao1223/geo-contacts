@@ -155,7 +155,7 @@ export function MapPanel() {
     <div className="page-stack">
       <PageHeader
         title="地图分布"
-        description="按国家 → 省/州 → 城市分层聚合；放大或点击气泡展开到下一层。"
+        description="按国家 → 省/州 → 城市分层聚合；点击气泡查看名单，再点「放大」进入下一层。"
         compact
         actions={
           missingCount > 0 ? (

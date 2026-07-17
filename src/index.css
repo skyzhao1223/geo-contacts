@@ -1509,6 +1509,12 @@ body:has(.page-stack-contacts) {
   border: none;
 }
 
+.map-region-cluster-icon {
+  overflow: visible !important;
+  background: transparent !important;
+  border: none !important;
+}
+
 .map-cluster {
   display: grid;
   place-items: center;
@@ -1533,15 +1539,23 @@ body:has(.page-stack-contacts) {
   display: flex;
   align-items: center;
   gap: 8px;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 0 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   color: #fff;
   border: 3px solid #fff;
   box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35);
   background: linear-gradient(145deg, #4f7cff, #2563eb);
   cursor: pointer;
+}
+
+.map-region-cluster-wrap {
+  align-items: flex-start;
+  border-radius: 18px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 .map-region-cluster-sm { font-size: 12px; }
@@ -1554,6 +1568,7 @@ body:has(.page-stack-contacts) {
 .map-region-cluster-count {
   display: grid;
   place-items: center;
+  flex-shrink: 0;
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
@@ -1567,9 +1582,16 @@ body:has(.page-stack-contacts) {
   flex: 1;
   min-width: 0;
   font-weight: 700;
+  line-height: 1.25;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  word-break: keep-all;
+}
+
+.map-region-cluster-wrap .map-region-cluster-title {
+  white-space: normal;
+  overflow: visible;
+  word-break: break-word;
 }
 
 .map-stat-region {
@@ -1582,6 +1604,50 @@ body:has(.page-stack-contacts) {
   padding-left: 18px;
   font-size: 13px;
   color: var(--text-muted);
+  max-height: 180px;
+  overflow: auto;
+}
+
+.region-cluster-popup .leaflet-popup-content {
+  margin: 12px 14px;
+  min-width: 200px;
+}
+
+.region-cluster-popup-body {
+  min-width: 220px;
+  max-width: min(86vw, 300px);
+}
+
+.region-cluster-popup-title {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: break-word;
+  color: var(--text);
+}
+
+.region-cluster-list li {
+  margin: 4px 0;
+}
+
+.region-cluster-member-name {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.region-cluster-member-loc {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.region-cluster-expand {
+  width: 100%;
+  margin-top: 12px;
+  justify-content: center;
 }
 
 .leaflet-cluster-anim .leaflet-marker-icon,
