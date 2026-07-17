@@ -1,0 +1,185 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import {
+  deleteKinship,
+  getAllKinships,
+  saveKinship,
+} from '@/db/database'
+import {
+  createKinship,
+  normalizeSpousePair,
+  type Kinship,
+  type ParentRole,
+} from '@/types/kinship'
+
+export interface KinshipsContextValue {
+  kinships: Kinship[]
+  loading: boolean
+  refresh: () => Promise<void>
+  setParent: (
+    childId: string,
+    parentId: string,
+    role?: ParentRole,
+  ) => Promise<Kinship>
+  removeParent: (childId: string, parentId: string) => Promise<void>
+  setSpouse: (a: string, b: string) => Promise<Kinship>
+  removeSpouse: (a: string, b: string) => Promise<void>
+  removeKinshipById: (id: string) => Promise<void>
+  getKinshipsOf: (contactId: string) => Kinship[]
+}
+
+const KinshipsContext = createContext<KinshipsContextValue | null>(null)
+
+export function KinshipsProvider({ children }: { children: ReactNode }) {
+  const [kinships, setKinships] = useState<Kinship[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      setKinships(await getAllKinships())
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  useEffect(() => {
+    const onUpdated = () => {
+      void refresh()
+    }
+    window.addEventListener('geo-contacts-updated', onUpdated)
+    return () => window.removeEventListener('geo-contacts-updated', onUpdated)
+  }, [refresh])
+
+  const setParent = useCallback(
+    async (childId: string, parentId: string, role: ParentRole = 'parent') => {
+      if (childId === parentId) {
+        throw new Error('不能将自己设为父母')
+      }
+
+      const existing = kinships.find(
+        (k) => k.type === 'parent' && k.fromId === childId && k.toId === parentId,
+      )
+      const next = createKinship({
+        id: existing?.id,
+        fromId: childId,
+        toId: parentId,
+        type: 'parent',
+        role,
+        createdAt: existing?.createdAt,
+      })
+      await saveKinship(next)
+      await refresh()
+      return next
+    },
+    [kinships, refresh],
+  )
+
+  const removeParent = useCallback(
+    async (childId: string, parentId: string) => {
+      const existing = kinships.find(
+        (k) => k.type === 'parent' && k.fromId === childId && k.toId === parentId,
+      )
+      if (existing) {
+        await deleteKinship(existing.id)
+        await refresh()
+      }
+    },
+    [kinships, refresh],
+  )
+
+  const setSpouse = useCallback(
+    async (a: string, b: string) => {
+      if (a === b) throw new Error('不能将自己设为配偶')
+      const { fromId, toId } = normalizeSpousePair(a, b)
+      const existing = kinships.find(
+        (k) => k.type === 'spouse' && k.fromId === fromId && k.toId === toId,
+      )
+      const next = createKinship({
+        id: existing?.id,
+        fromId,
+        toId,
+        type: 'spouse',
+        createdAt: existing?.createdAt,
+      })
+      await saveKinship(next)
+      await refresh()
+      return next
+    },
+    [kinships, refresh],
+  )
+
+  const removeSpouse = useCallback(
+    async (a: string, b: string) => {
+      const { fromId, toId } = normalizeSpousePair(a, b)
+      const existing = kinships.find(
+        (k) => k.type === 'spouse' && k.fromId === fromId && k.toId === toId,
+      )
+      if (existing) {
+        await deleteKinship(existing.id)
+        await refresh()
+      }
+    },
+    [kinships, refresh],
+  )
+
+  const removeKinshipById = useCallback(
+    async (id: string) => {
+      await deleteKinship(id)
+      await refresh()
+    },
+    [refresh],
+  )
+
+  const getKinshipsOf = useCallback(
+    (contactId: string) =>
+      kinships.filter((k) => k.fromId === contactId || k.toId === contactId),
+    [kinships],
+  )
+
+  const value = useMemo<KinshipsContextValue>(
+    () => ({
+      kinships,
+      loading,
+      refresh,
+      setParent,
+      removeParent,
+      setSpouse,
+      removeSpouse,
+      removeKinshipById,
+      getKinshipsOf,
+    }),
+    [
+      kinships,
+      loading,
+      refresh,
+      setParent,
+      removeParent,
+      setSpouse,
+      removeSpouse,
+      removeKinshipById,
+      getKinshipsOf,
+    ],
+  )
+
+  return <KinshipsContext.Provider value={value}>{children}</KinshipsContext.Provider>
+}
+
+export function useKinships(): KinshipsContextValue {
+  const value = useContext(KinshipsContext)
+  if (!value) {
+    throw new Error('useKinships must be used within KinshipsProvider')
+  }
+  return value
+}
