@@ -8,6 +8,7 @@ import { geocodeContactsLocations } from '@/lib/geocode'
 import { createAvatarMarkerIcon } from '@/lib/map-marker'
 import {
   clusterByRegion,
+  regionLevelLabel,
   type RegionLevel,
   type RegionPoint,
 } from '@/lib/region-cluster'
@@ -23,10 +24,10 @@ import { RegionClusterMarkers } from './RegionClusterMarkers'
 import { useMapZoom } from './useMapZoom'
 
 const REGION_LEVEL_HINT: Record<RegionLevel, string> = {
-  country: '按国家聚合',
-  province: '按省/州聚合',
-  city: '按城市聚合',
-  person: '显示个人',
+  country: regionLevelLabel('country'),
+  province: regionLevelLabel('province'),
+  city: regionLevelLabel('city'),
+  person: regionLevelLabel('person'),
 }
 
 type MapPoint = RegionPoint & { icon: DivIcon }
