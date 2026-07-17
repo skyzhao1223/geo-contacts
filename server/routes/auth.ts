@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db.js'
 import { authMiddleware, signToken } from '../auth.js'
+import { upsertSsoUser, verifyDashboardCookie } from '../sso.js'
 
 export const authRouter = Router()
 
@@ -115,6 +116,25 @@ authRouter.post('/login', (req, res) => {
     return
   }
 
+  const token = signToken({ userId: user.id, email: user.email })
+  res.json({
+    token,
+    user: serializeUser(user),
+  })
+})
+
+/**
+ * 用 aws-infra dashboard 会话换取本应用 JWT。
+ * 浏览器需带 credentials，以便转发 dashboard_session Cookie。
+ */
+authRouter.post('/sso', async (req, res) => {
+  const identity = await verifyDashboardCookie(req.headers.cookie)
+  if (!identity) {
+    res.status(401).json({ error: '未登录站内账号，请先登录 zhaosky.cn' })
+    return
+  }
+
+  const user = upsertSsoUser(identity)
   const token = signToken({ userId: user.id, email: user.email })
   res.json({
     token,

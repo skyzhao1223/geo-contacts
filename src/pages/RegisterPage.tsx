@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Map, Users, Sparkles } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/lib/api'
+import { hasZhaoskyAuthBridge, redirectToSiteLogin } from '@/lib/site-auth'
 import { AuthLayout } from '@/components/auth'
 
 export function RegisterPage() {
@@ -13,6 +14,37 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const siteAuth = hasZhaoskyAuthBridge()
+
+  if (siteAuth) {
+    return (
+      <AuthLayout
+        heroTitle="GeoContacts"
+        heroDescription="本应用已接入站内统一账号，请先完成站内注册或登录。"
+        features={[
+          { icon: <Sparkles size={18} />, text: '与 zhaosky.cn 同一套账号' },
+          { icon: <Users size={18} />, text: '登录后自动进入通讯录' },
+          { icon: <Map size={18} />, text: '地图、族谱与好友私信' },
+        ]}
+        panelTitle="使用站内账号"
+        panelDescription="GeoContacts 不再单独注册。请用 zhaosky.cn 账号进入。"
+        footer={
+          <p className="auth-switch">
+            已有站内账号？<Link to="/login">返回登录</Link>
+          </p>
+        }
+      >
+        <div className="form-grid">
+          <button type="button" className="button-primary" onClick={() => redirectToSiteLogin()}>
+            前往站内登录
+          </button>
+          <a className="button-secondary" href="/register" style={{ textAlign: 'center' }}>
+            前往站内注册
+          </a>
+        </div>
+      </AuthLayout>
+    )
+  }
 
   return (
     <AuthLayout
@@ -50,7 +82,7 @@ export function RegisterPage() {
           <input
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="你的称呼"
+            placeholder="怎么称呼你"
             required
           />
         </label>
@@ -71,13 +103,13 @@ export function RegisterPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="至少 6 位"
-            minLength={6}
             required
+            minLength={6}
           />
         </label>
         {error && <div className="status-banner error-banner">{error}</div>}
         <button type="submit" className="button-primary" disabled={loading}>
-          {loading ? '注册中...' : '注册并开始'}
+          {loading ? '注册中...' : '注册'}
         </button>
       </form>
     </AuthLayout>

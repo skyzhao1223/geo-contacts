@@ -2,27 +2,27 @@ export type DemoAvatarGender = 'male' | 'female'
 
 const BG = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf'
 
-/** 短发为主，偏男性观感 */
+/** DiceBear 9.x avataaars 发型枚举（无 shortHair/longHair 前缀） */
 const MALE_TOP = [
-  'shortHairShortFlat',
-  'shortHairTheCaesar',
-  'shortHairShortRound',
-  'shortHairShortWaved',
-  'shortHairDreads01',
-  'shortHairSides',
-  'shortHairTheCaesarSidePart',
+  'shortFlat',
+  'theCaesar',
+  'shortRound',
+  'shortWaved',
+  'dreads01',
+  'sides',
+  'theCaesarAndSidePart',
+  'shortCurly',
 ].join(',')
 
-/** 长发为主，偏女性观感 */
 const FEMALE_TOP = [
-  'longHairBob',
-  'longHairStraight',
-  'longHairStraight2',
-  'longHairCurly',
-  'longHairNotTooLong',
-  'longHairMiaWallace',
-  'longHairBigHair',
-  'longHairBun',
+  'bob',
+  'straight01',
+  'straight02',
+  'curly',
+  'longButNotTooLong',
+  'miaWallace',
+  'bigHair',
+  'bun',
 ].join(',')
 
 /**
@@ -69,8 +69,31 @@ const SAMPLE_NAME_GENDER: Record<string, DemoAvatarGender> = {
   吴思琪: 'female',
   郑博文: 'male',
   'Emily Chen': 'female',
-  'Kenji Sato': 'male',
+  'Marcus Johnson': 'male',
+  'Sofía Ramírez': 'female',
+  'Lucas Oliveira': 'male',
+  'Camila Rossi': 'female',
   'Sophie Martin': 'female',
+  'Lars Bergström': 'male',
+  'Anna Müller': 'female',
+  'Diego Fernández': 'male',
+  'Irina Petrova': 'female',
+  'Amara Okafor': 'female',
+  'Thabo Molefe': 'male',
+  'Aisha Hassan': 'female',
+  'Youssef Nabil': 'male',
+  'Layla Al-Rashid': 'female',
+  'Noa Cohen': 'female',
+  'Arjun Mehta': 'male',
+  'Priya Sharma': 'female',
+  'Wei Ling Tan': 'female',
+  'Siriwan Chaiyawan': 'female',
+  'Budi Santoso': 'male',
+  'Kenji Sato': 'male',
+  'Min-ji Park': 'female',
+  'Ching Wan Ho': 'female',
+  'Oliver Bennett': 'male',
+  'Maia Ngata': 'female',
 }
 
 const MATURE_MALE_NAMES = new Set(['王德福', '王建国'])
