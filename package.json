@@ -11,7 +11,8 @@
     "build:site": "VITE_BASE=/geo-contacts/ tsc -b && VITE_BASE=/geo-contacts/ vite build",
     "start": "tsx server/index.ts",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
