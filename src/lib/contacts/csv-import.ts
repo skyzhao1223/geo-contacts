@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
-import type { Contact, CsvColumnMapping } from '../types/contact'
-import { createEmptyContact, locationToText, parseLocationText } from '../types/contact'
+import type { Contact, CsvColumnMapping } from '../../types/contact'
+import { createEmptyContact, locationToText, parseLocationText } from '../../types/contact'
 
 const COLUMN_ALIASES: Record<keyof CsvColumnMapping, string[]> = {
   name: ['name', '姓名', '名字', '联系人', 'display name', 'full name'],

@@ -62,8 +62,28 @@ cd ../aws-infra-dashboard && npm run dev:stack
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `PORT` | `3001` | 服务端口 |
-| `JWT_SECRET` | 开发默认值 | 生产环境务必修改 |
+| `HOST` | `127.0.0.1` | 监听地址 |
+| `JWT_SECRET` | 仅开发有默认值 | **生产必须设置**，否则进程退出 |
+| `CORS_ORIGIN` | 开发放开 / 生产同域 | 逗号分隔的跨域白名单；同域托管静态资源时可不设 |
 | `DB_PATH` | `server/data/geo-contacts.db` | SQLite 数据库路径 |
+| `VAPID_PUBLIC_KEY` | 无 | Web Push 公钥；与私钥成对，缺则推送降级关闭 |
+| `VAPID_PRIVATE_KEY` | 无 | Web Push 私钥 |
+| `VAPID_SUBJECT` | `mailto:admin@localhost` | VAPID subject，建议 `mailto:` 或 HTTPS URL |
+| `PUBLIC_PATH_PREFIX` | 无 / 跟 `VITE_BASE` | 通知深链前缀，如 `/geo-contacts`（无尾斜杠） |
+
+生成 VAPID 密钥：
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+```bash
+NODE_ENV=production JWT_SECRET=your-secret \
+  VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:you@example.com \
+  PUBLIC_PATH_PREFIX=/geo-contacts \
+  npm start
+# 若前后端分域：CORS_ORIGIN=https://example.com
+```
 
 ## 使用流程
 
@@ -79,9 +99,15 @@ cd ../aws-infra-dashboard && npm run dev:stack
 - 前端：React + TypeScript + Vite + Tailwind + Dexie + Leaflet + PWA
 - 后端：Express + SQLite + JWT + WebSocket
 
-## 后续计划
+## 测试
 
-- 好友资料地图叠加显示
-- 高德地图切换
-- 消息通知 / 好友动态
-- Capacitor 原生壳与手机通讯录直读
+```bash
+npm test
+```
+
+## 计划与路线图
+
+详见 [PLAN.md](./PLAN.md)，包含：
+- PWA + Web Push 实施计划（已完成）
+- 后续阶段（Capacitor、国内推送、地理编码）
+- 关键决策记录与已知限制

@@ -16,25 +16,57 @@ interface ChatViewProps {
 export function ChatView({ conversation, onBack }: ChatViewProps) {
   const { user } = useAuth()
   const presence = usePresenceState()
-  const { getMessages, loadMessages, sendMessage, markRead } = useChat()
+  const {
+    getMessages,
+    hasMoreMessages,
+    loadMessages,
+    loadOlderMessages,
+    sendMessage,
+    markRead,
+  } = useChat()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const stickToBottom = useRef(true)
   const messages = getMessages(conversation.id)
+  const hasMore = hasMoreMessages(conversation.id)
   const online = isUserOnline(presence, conversation.peer.id, conversation.peer.online)
 
   useEffect(() => {
+    stickToBottom.current = true
     void loadMessages(conversation.id).then(() => markRead(conversation.id))
   }, [conversation.id, loadMessages, markRead])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (stickToBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages.length])
+
+  const handleLoadOlder = async () => {
+    const list = listRef.current
+    const prevHeight = list?.scrollHeight ?? 0
+    const prevTop = list?.scrollTop ?? 0
+    setLoadingOlder(true)
+    stickToBottom.current = false
+    try {
+      await loadOlderMessages(conversation.id)
+      requestAnimationFrame(() => {
+        if (!list) return
+        list.scrollTop = list.scrollHeight - prevHeight + prevTop
+      })
+    } finally {
+      setLoadingOlder(false)
+    }
+  }
 
   const handleSend = async () => {
     const body = draft.trim()
     if (!body || !conversation.canMessage) return
     setSending(true)
+    stickToBottom.current = true
     try {
       await sendMessage(conversation.id, body)
       setDraft('')
@@ -63,7 +95,27 @@ export function ChatView({ conversation, onBack }: ChatViewProps) {
         </div>
       </header>
 
-      <div className="chat-messages">
+      <div
+        ref={listRef}
+        className="chat-messages"
+        onScroll={(event) => {
+          const el = event.currentTarget
+          stickToBottom.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 80
+        }}
+      >
+        {hasMore && (
+          <div className="chat-load-older">
+            <button
+              type="button"
+              className="button-ghost"
+              disabled={loadingOlder}
+              onClick={() => void handleLoadOlder()}
+            >
+              {loadingOlder ? '加载中…' : '加载更早的消息'}
+            </button>
+          </div>
+        )}
         {messages.map((message) => {
           const mine = message.senderId === user?.id
           return (
@@ -89,12 +141,17 @@ export function ChatView({ conversation, onBack }: ChatViewProps) {
           <p className="chat-readonly-hint">已不是好友，会话只读</p>
         )}
         <div className="chat-composer-row">
+          <label className="sr-only" htmlFor="chat-draft">
+            消息内容
+          </label>
           <input
+            id="chat-draft"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder={conversation.canMessage ? '输入消息…' : '无法发送'}
             disabled={!conversation.canMessage || sending}
             maxLength={2000}
+            aria-label="消息内容"
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()

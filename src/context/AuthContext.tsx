@@ -8,13 +8,15 @@ import {
   type ReactNode,
 } from 'react'
 import { api, getToken, setToken } from '@/lib/api'
-import { seedDemoDataIfNeeded } from '@/lib/seed-demo-data'
+import { ensureUserDatabase } from '@/local-db/database'
+import { seedDemoDataIfNeeded } from '@/lib/demo/seed-demo-data'
 import {
   hasZhaoskyAuthBridge,
   logoutSite,
   waitForSiteSession,
-} from '@/lib/site-auth'
+} from '@/lib/auth/site-auth'
 import type { UserProfile } from '@/types/user'
+import { syncPushSubscription, teardownPushOnLogout } from '@/lib/push'
 
 interface AuthContextValue {
   user: UserProfile | null
@@ -55,7 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithSiteSession = useCallback(async () => {
     const { token, user: profile } = await api.sso()
     setToken(token)
+    await ensureUserDatabase(profile.id)
     setUser(profile)
+    void syncPushSubscription()
     return true
   }, [])
 
@@ -98,38 +102,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return
-    void seedDemoDataIfNeeded(user.id, user.displayName).then(async (count) => {
+    void (async () => {
+      await ensureUserDatabase(user.id)
+      const count = await seedDemoDataIfNeeded(user.id, user.displayName)
       if (count > 0) {
         const refreshed = await api.me()
         setUser(refreshed.user)
       }
-    })
+      void syncPushSubscription()
+    })()
   }, [user?.id])
 
   const login = useCallback(async (email: string, password: string) => {
     const { token, user: profile } = await api.login(email, password)
     setToken(token)
+    await ensureUserDatabase(profile.id)
     setUser(profile)
+    void syncPushSubscription()
   }, [])
 
   const register = useCallback(
     async (email: string, password: string, displayName: string) => {
       const { token, user: profile } = await api.register(email, password, displayName)
       setToken(token)
+      await ensureUserDatabase(profile.id)
       setUser(profile)
       await seedDemoDataIfNeeded(profile.id, displayName)
       const refreshed = await api.me()
       setUser(refreshed.user)
+      void syncPushSubscription()
     },
     [],
   )
 
   const logout = useCallback(() => {
-    setToken(null)
-    setUser(null)
-    if (hasZhaoskyAuthBridge() || readHasSiteCookieHint()) {
-      logoutSite()
-    }
+    void (async () => {
+      await teardownPushOnLogout()
+      setToken(null)
+      setUser(null)
+      if (hasZhaoskyAuthBridge() || readHasSiteCookieHint()) {
+        logoutSite()
+      }
+    })()
   }, [])
 
   const updateProfile = useCallback(async (payload: Partial<UserProfile>) => {

@@ -1,5 +1,6 @@
 export { Avatar } from './Avatar'
 export { EmptyState } from './EmptyState'
+export { ErrorBoundary } from './ErrorBoundary'
 export { OnlineBadge } from './OnlineBadge'
 export { PageHeader } from './PageHeader'
 export { SegmentedControl } from './SegmentedControl'

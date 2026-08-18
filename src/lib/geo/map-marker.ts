@@ -1,7 +1,6 @@
 import L from 'leaflet'
-import 'leaflet.markercluster'
 
-import { getAvatarGradient, getAvatarInitials } from './avatar-color'
+import { getAvatarGradient, getAvatarInitials } from '../ui/avatar-color'
 
 const MARKER_SIZE = 42
 
@@ -92,18 +91,5 @@ export function createRegionClusterIcon(title: string, count: number): L.DivIcon
     iconSize: L.point(width, height),
     iconAnchor: [width / 2, height / 2],
     popupAnchor: [0, -height / 2 - 4],
-  })
-}
-
-export function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
-  const count = cluster.getChildCount()
-  const size = count >= 50 ? 'lg' : count >= 10 ? 'md' : 'sm'
-  const dimension = size === 'lg' ? 52 : size === 'md' ? 46 : 40
-
-  return L.divIcon({
-    html: `<div class="map-cluster map-cluster-${size}"><span>${count}</span></div>`,
-    className: 'map-cluster-icon',
-    iconSize: L.point(dimension, dimension),
-    iconAnchor: [dimension / 2, dimension / 2],
   })
 }

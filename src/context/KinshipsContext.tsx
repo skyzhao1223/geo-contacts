@@ -11,7 +11,13 @@ import {
   deleteKinship,
   getAllKinships,
   saveKinship,
-} from '@/db/database'
+} from '@/local-db/database'
+import {
+  KINSHIPS_UPDATED_EVENT,
+  broadcastKinshipsUpdated,
+  notifyContactsUpdated,
+} from '@/lib/contacts/contacts-events'
+import { syncFamilySystemTags } from '@/lib/family/system-tags'
 import {
   createKinship,
   normalizeSpousePair,
@@ -22,7 +28,7 @@ import {
 export interface KinshipsContextValue {
   kinships: Kinship[]
   loading: boolean
-  refresh: () => Promise<void>
+  refresh: (options?: { silent?: boolean }) => Promise<void>
   setParent: (
     childId: string,
     parentId: string,
@@ -37,16 +43,25 @@ export interface KinshipsContextValue {
 
 const KinshipsContext = createContext<KinshipsContextValue | null>(null)
 
+async function syncTagsAndNotifyContacts(): Promise<void> {
+  const updated = await syncFamilySystemTags()
+  if (updated > 0) {
+    notifyContactsUpdated()
+  }
+}
+
 export function KinshipsProvider({ children }: { children: ReactNode }) {
   const [kinships, setKinships] = useState<Kinship[]>([])
   const [loading, setLoading] = useState(true)
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false
+    if (!silent) setLoading(true)
     try {
       setKinships(await getAllKinships())
+      await syncTagsAndNotifyContacts()
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -56,10 +71,10 @@ export function KinshipsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onUpdated = () => {
-      void refresh()
+      void refresh({ silent: true })
     }
-    window.addEventListener('geo-contacts-updated', onUpdated)
-    return () => window.removeEventListener('geo-contacts-updated', onUpdated)
+    window.addEventListener(KINSHIPS_UPDATED_EVENT, onUpdated)
+    return () => window.removeEventListener(KINSHIPS_UPDATED_EVENT, onUpdated)
   }, [refresh])
 
   const setParent = useCallback(
@@ -80,10 +95,15 @@ export function KinshipsProvider({ children }: { children: ReactNode }) {
         createdAt: existing?.createdAt,
       })
       await saveKinship(next)
-      await refresh()
+      setKinships((current) => {
+        const others = current.filter((item) => item.id !== next.id)
+        return [...others, next]
+      })
+      await syncTagsAndNotifyContacts()
+      broadcastKinshipsUpdated()
       return next
     },
-    [kinships, refresh],
+    [kinships],
   )
 
   const removeParent = useCallback(
@@ -93,10 +113,12 @@ export function KinshipsProvider({ children }: { children: ReactNode }) {
       )
       if (existing) {
         await deleteKinship(existing.id)
-        await refresh()
+        setKinships((current) => current.filter((item) => item.id !== existing.id))
+        await syncTagsAndNotifyContacts()
+        broadcastKinshipsUpdated()
       }
     },
-    [kinships, refresh],
+    [kinships],
   )
 
   const setSpouse = useCallback(
@@ -114,10 +136,15 @@ export function KinshipsProvider({ children }: { children: ReactNode }) {
         createdAt: existing?.createdAt,
       })
       await saveKinship(next)
-      await refresh()
+      setKinships((current) => {
+        const others = current.filter((item) => item.id !== next.id)
+        return [...others, next]
+      })
+      await syncTagsAndNotifyContacts()
+      broadcastKinshipsUpdated()
       return next
     },
-    [kinships, refresh],
+    [kinships],
   )
 
   const removeSpouse = useCallback(
@@ -128,19 +155,20 @@ export function KinshipsProvider({ children }: { children: ReactNode }) {
       )
       if (existing) {
         await deleteKinship(existing.id)
-        await refresh()
+        setKinships((current) => current.filter((item) => item.id !== existing.id))
+        await syncTagsAndNotifyContacts()
+        broadcastKinshipsUpdated()
       }
     },
-    [kinships, refresh],
+    [kinships],
   )
 
-  const removeKinshipById = useCallback(
-    async (id: string) => {
-      await deleteKinship(id)
-      await refresh()
-    },
-    [refresh],
-  )
+  const removeKinshipById = useCallback(async (id: string) => {
+    await deleteKinship(id)
+    setKinships((current) => current.filter((item) => item.id !== id))
+    await syncTagsAndNotifyContacts()
+    broadcastKinshipsUpdated()
+  }, [])
 
   const getKinshipsOf = useCallback(
     (contactId: string) =>

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { FileUp } from 'lucide-react'
 import type { CsvColumnMapping, Contact } from '@/types/contact'
-import { guessCsvMapping, parseCsvFile, readCsvHeaders } from '@/lib/csv-import'
-import { parseVCardFile } from '@/lib/vcard'
-import { importJsonBackup } from '@/lib/export'
+import { guessCsvMapping, parseCsvFile, readCsvHeaders } from '@/lib/contacts/csv-import'
+import { parseVCardFile } from '@/lib/contacts/vcard'
+import { importJsonBackup } from '@/lib/contacts/export'
 
 interface ImportPanelProps {
   onImport: (contacts: Contact[]) => Promise<void>

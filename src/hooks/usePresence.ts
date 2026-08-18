@@ -35,17 +35,25 @@ export function usePresence(enabled: boolean) {
     let heartbeatTimer: number | null = null
     let reconnectTimer: number | null = null
     let closedByUser = false
+    let attempt = 0
 
     const connect = () => {
       socket = new WebSocket(getWebSocketUrl(token))
 
       socket.onmessage = (event) => {
-        const message = JSON.parse(event.data as string) as
+        let message:
           | { type: 'snapshot'; onlineUsers: Array<{ userId: string; online: boolean; lastSeenAt: number | null }> }
           | { type: 'presence'; userId: string; online: boolean; lastSeenAt: number | null }
           | { type: 'chat_message'; conversationId: string; message: ChatMessage }
           | { type: 'chat_read'; conversationId: string; userId: string; lastReadAt: number }
           | { type: 'heartbeat_ack' }
+
+        try {
+          message = JSON.parse(event.data as string)
+        } catch {
+          console.warn('忽略畸形 WebSocket 消息')
+          return
+        }
 
         if (message.type === 'snapshot') {
           setPresence(
@@ -74,6 +82,7 @@ export function usePresence(enabled: boolean) {
       }
 
       socket.onopen = () => {
+        attempt = 0
         heartbeatTimer = window.setInterval(() => {
           if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'heartbeat' }))
@@ -87,7 +96,9 @@ export function usePresence(enabled: boolean) {
           heartbeatTimer = null
         }
         if (!closedByUser) {
-          reconnectTimer = window.setTimeout(connect, 3000)
+          const delay = Math.min(30_000, 1000 * 2 ** attempt)
+          attempt += 1
+          reconnectTimer = window.setTimeout(connect, delay)
         }
       }
     }

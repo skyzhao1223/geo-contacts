@@ -3,6 +3,12 @@ import { v4 as uuid } from 'uuid'
 import { db } from '../db.js'
 import { authMiddleware } from '../auth.js'
 import { isUserOnline } from '../presence.js'
+import {
+  buildFriendAcceptedPush,
+  buildFriendRequestPush,
+  pushUrlBase,
+  sendPushToUser,
+} from '../push.js'
 
 export const friendsRouter = Router()
 
@@ -36,6 +42,13 @@ function friendUser(row: {
     lastSeenAt: row.last_seen_at,
     online: isUserOnline(row.id),
   }
+}
+
+function displayNameOf(userId: string): string {
+  const row = db
+    .prepare('SELECT display_name FROM users WHERE id = ?')
+    .get(userId) as { display_name: string } | undefined
+  return row?.display_name ?? '用户'
 }
 
 friendsRouter.get('/', authMiddleware, (req, res) => {
@@ -145,6 +158,9 @@ friendsRouter.post('/request', authMiddleware, (req, res) => {
     | { id: string; status: string; requester_id: string; addressee_id: string }
     | undefined
 
+  const urlBase = pushUrlBase()
+  const meName = displayNameOf(req.auth!.userId)
+
   if (existing) {
     if (existing.status === 'accepted') {
       res.status(409).json({ error: '你们已经是好友了' })
@@ -156,10 +172,25 @@ friendsRouter.post('/request', authMiddleware, (req, res) => {
           Date.now(),
           existing.id,
         )
+        sendPushToUser(
+          existing.requester_id,
+          buildFriendAcceptedPush({ fromName: meName, urlBase }),
+        )
         res.json({ friendshipId: existing.id, status: 'accepted', autoAccepted: true })
         return
       }
       res.status(409).json({ error: '好友请求已发送，等待对方确认' })
+      return
+    }
+    if (existing.status === 'rejected') {
+      const now = Date.now()
+      db.prepare(
+        `UPDATE friendships
+         SET requester_id = ?, addressee_id = ?, status = 'pending', created_at = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(req.auth!.userId, userId, now, now, existing.id)
+      sendPushToUser(userId, buildFriendRequestPush({ fromName: meName, urlBase }))
+      res.json({ friendshipId: existing.id, status: 'pending' })
       return
     }
   }
@@ -170,6 +201,8 @@ friendsRouter.post('/request', authMiddleware, (req, res) => {
     `INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at)
      VALUES (?, ?, ?, 'pending', ?, ?)`,
   ).run(id, req.auth!.userId, userId, now, now)
+
+  sendPushToUser(userId, buildFriendRequestPush({ fromName: meName, urlBase }))
 
   res.json({ friendshipId: id, status: 'pending' })
 })
@@ -184,7 +217,7 @@ friendsRouter.post('/accept', authMiddleware, (req, res) => {
   const friendship = db
     .prepare('SELECT * FROM friendships WHERE id = ?')
     .get(friendshipId) as
-    | { id: string; addressee_id: string; status: string }
+    | { id: string; addressee_id: string; requester_id: string; status: string }
     | undefined
 
   if (!friendship) {
@@ -200,6 +233,14 @@ friendsRouter.post('/accept', authMiddleware, (req, res) => {
   db.prepare(`UPDATE friendships SET status = 'accepted', updated_at = ? WHERE id = ?`).run(
     Date.now(),
     friendshipId,
+  )
+
+  sendPushToUser(
+    friendship.requester_id,
+    buildFriendAcceptedPush({
+      fromName: displayNameOf(req.auth!.userId),
+      urlBase: pushUrlBase(),
+    }),
   )
 
   res.json({ friendshipId, status: 'accepted' })

@@ -75,9 +75,28 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_conversations_last ON conversations(last_message_at);
+  CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
 `)
+
+function ensureColumn(table: string, column: string, definition: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+  if (cols.some((c) => c.name === column)) return
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+}
+
+ensureColumn('users', 'push_show_preview', 'INTEGER NOT NULL DEFAULT 1')
 
 export interface DbUser {
   id: string
@@ -91,6 +110,7 @@ export interface DbUser {
   current_location: string | null
   last_seen_at: number | null
   created_at: number
+  push_show_preview?: number
 }
 
 export interface DbFriendship {
@@ -116,5 +136,14 @@ export interface DbMessage {
   conversation_id: string
   sender_id: string
   body: string
+  created_at: number
+}
+
+export interface DbPushSubscription {
+  endpoint: string
+  user_id: string
+  p256dh: string
+  auth: string
+  user_agent: string | null
   created_at: number
 }

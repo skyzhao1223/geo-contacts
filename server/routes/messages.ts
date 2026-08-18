@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid'
 import { db } from '../db.js'
 import { authMiddleware } from '../auth.js'
 import { isUserOnline, sendToUser } from '../presence.js'
+import { buildChatPush, pushUrlBase, sendPushToUser } from '../push.js'
 
 export const messagesRouter = Router()
 
@@ -342,6 +343,22 @@ messagesRouter.post('/conversations/:id/messages', authMiddleware, (req, res) =>
   })
   sendToUser(userId, payload)
   sendToUser(otherId, payload)
+
+  const sender = db
+    .prepare('SELECT display_name FROM users WHERE id = ?')
+    .get(userId) as { display_name: string } | undefined
+
+  sendPushToUser(
+    otherId,
+    buildChatPush({
+      recipientId: otherId,
+      senderName: sender?.display_name ?? '新消息',
+      body,
+      conversationId: conversation.id,
+      urlBase: pushUrlBase(),
+    }),
+    { coalesce: true },
+  )
 
   res.json({ message })
 })

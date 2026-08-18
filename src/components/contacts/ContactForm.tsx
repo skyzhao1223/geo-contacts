@@ -6,7 +6,7 @@ import { usePresenceState } from '@/context/PresenceContext'
 import { useContacts } from '@/context/ContactsContext'
 import { useKinships } from '@/context/KinshipsContext'
 import { getLinkedLastSeen, getLinkedOnline } from '@/lib/presence'
-import { inferHometown } from '@/lib/hometown-infer'
+import { inferHometown } from '@/lib/geo/hometown-infer'
 import { Avatar } from '@/components/ui/Avatar'
 import { OnlineBadge } from '@/components/ui/OnlineBadge'
 import { KinshipEditor } from '@/components/family'
@@ -277,7 +277,7 @@ export function ContactForm({ initial, onSave, onDelete }: ContactFormProps) {
                 tags: event.target.value.split(/[,，;；]/).map((v) => v.trim()),
               })
             }
-            placeholder="同学, 同事, 家人"
+            placeholder="同学, 同事（族谱关系会自动打「族谱」标签）"
           />
         </Field>
         {contact.tags.filter(Boolean).length > 0 && (

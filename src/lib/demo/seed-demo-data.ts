@@ -3,7 +3,7 @@ import {
   getAllKinships,
   saveContacts,
   saveKinship,
-} from '../db/database'
+} from '../../local-db/database'
 import {
   createSampleContacts,
   createSampleFamilyContacts,
@@ -11,9 +11,11 @@ import {
   createSampleKinships,
   getSampleProfileAvatar,
   SAMPLE_PROFILE,
-} from '../data/sample-contacts'
+} from '../../data/sample-contacts'
 import { getSampleContactAvatar } from './demo-avatar'
-import { api } from './api'
+import { api } from '../api'
+import { notifyContactsUpdated, notifyKinshipsUpdated } from '../contacts/contacts-events'
+import { syncFamilySystemTags } from '../family/system-tags'
 
 const seededKey = (userId: string) => `geo-contacts-demo-seeded:${userId}`
 const avatarBackfillKey = (userId: string) => `geo-contacts-demo-avatars:${userId}`
@@ -78,7 +80,7 @@ export async function backfillSampleAvatars(userId: string): Promise<number> {
   )
 
   localStorage.setItem(avatarBackfillKey(userId), '1')
-  window.dispatchEvent(new Event('geo-contacts-updated'))
+  notifyContactsUpdated()
   return needUpdate.length
 }
 
@@ -106,7 +108,7 @@ export async function backfillSampleAvatarGender(userId: string): Promise<number
   await saveContacts(patched)
   localStorage.setItem(avatarGenderBackfillKey(userId), '1')
   localStorage.setItem(avatarBackfillKey(userId), '1')
-  window.dispatchEvent(new Event('geo-contacts-updated'))
+  notifyContactsUpdated()
   return patched.length
 }
 
@@ -152,7 +154,7 @@ export async function backfillSampleKinships(userId: string): Promise<number> {
       notes: legacyHaoran.notes?.includes('推断')
         ? legacyHaoran.notes
         : `${legacyHaoran.notes ?? ''}；籍贯留空可演示族谱推断`.replace(/^；/, ''),
-      tags: [...new Set([...legacyHaoran.tags, '家人'])],
+      tags: [...new Set([...legacyHaoran.tags, '族谱'])],
     })
   }
 
@@ -175,8 +177,10 @@ export async function backfillSampleKinships(userId: string): Promise<number> {
   }
 
   localStorage.setItem(kinshipBackfillKey(userId), '1')
+  await syncFamilySystemTags()
   if (toAdd.length > 0 || patches.length > 0 || added > 0) {
-    window.dispatchEvent(new Event('geo-contacts-updated'))
+    notifyContactsUpdated()
+    notifyKinshipsUpdated()
   }
   return added + toAdd.length
 }
@@ -201,7 +205,7 @@ export async function backfillSampleGlobalContacts(userId: string): Promise<numb
 
   if (toAdd.length > 0) {
     await saveContacts(toAdd)
-    window.dispatchEvent(new Event('geo-contacts-updated'))
+    notifyContactsUpdated()
   }
 
   localStorage.setItem(globalBackfillKey(userId), '1')
@@ -216,6 +220,10 @@ export async function seedDemoDataIfNeeded(
   await backfillSampleAvatarGender(userId)
   await backfillSampleKinships(userId)
   await backfillSampleGlobalContacts(userId)
+  const synced = await syncFamilySystemTags()
+  if (synced > 0) {
+    notifyContactsUpdated()
+  }
 
   if (localStorage.getItem(seededKey(userId))) {
     return 0
@@ -232,6 +240,7 @@ export async function seedDemoDataIfNeeded(
   const samples = createSampleContacts()
   await saveContacts(samples)
   await saveSampleKinships(samples)
+  await syncFamilySystemTags()
   await seedDemoProfile(displayName)
   localStorage.setItem(avatarBackfillKey(userId), '1')
   localStorage.setItem(avatarGenderBackfillKey(userId), '1')
@@ -240,7 +249,8 @@ export async function seedDemoDataIfNeeded(
 
   localStorage.setItem(seededKey(userId), '1')
   sessionStorage.setItem(hintKey, '1')
-  window.dispatchEvent(new Event('geo-contacts-updated'))
+  notifyContactsUpdated()
+  notifyKinshipsUpdated()
   return samples.length
 }
 
@@ -251,6 +261,7 @@ export async function forceSeedDemoData(
   const samples = createSampleContacts()
   await saveContacts(samples)
   await saveSampleKinships(samples)
+  await syncFamilySystemTags()
   await seedDemoProfile(displayName)
   localStorage.setItem(seededKey(userId), '1')
   localStorage.setItem(avatarBackfillKey(userId), '1')
@@ -258,6 +269,7 @@ export async function forceSeedDemoData(
   localStorage.setItem(kinshipBackfillKey(userId), '1')
   localStorage.setItem(globalBackfillKey(userId), '1')
   sessionStorage.setItem(hintKey, '1')
-  window.dispatchEvent(new Event('geo-contacts-updated'))
+  notifyContactsUpdated()
+  notifyKinshipsUpdated()
   return samples.length
 }

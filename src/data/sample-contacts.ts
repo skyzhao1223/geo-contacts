@@ -6,7 +6,7 @@ import {
   type Kinship,
   type ParentRole,
 } from '../types/kinship'
-import { getDemoAvatarUrl, getSampleContactAvatar } from '../lib/demo-avatar'
+import { getDemoAvatarUrl, getSampleContactAvatar } from '../lib/demo/demo-avatar'
 
 function loc(
   province: string,
@@ -77,7 +77,7 @@ function familyPerson(
 ): Contact {
   return person(name, {
     id: SAMPLE_FAMILY_IDS[key],
-    tags: ['示例', '家人'],
+    tags: ['示例', '族谱'],
     ...extra,
   })
 }

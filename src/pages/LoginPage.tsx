@@ -7,7 +7,7 @@ import {
   hasZhaoskyAuthBridge,
   readSiteSession,
   redirectToSiteLogin,
-} from '@/lib/site-auth'
+} from '@/lib/auth/site-auth'
 import { AuthLayout } from '@/components/auth'
 
 export function LoginPage() {

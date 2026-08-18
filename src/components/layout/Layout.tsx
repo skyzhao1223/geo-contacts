@@ -11,7 +11,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { useChat } from '@/context/ChatContext'
+import { useUnreadTotal } from '@/context/ChatContext'
 import { Avatar } from '@/components/ui/Avatar'
 
 /** 底部栏 + 侧栏「核心」：控制在 4 项 */
@@ -60,7 +60,7 @@ const secondaryNav = [
 
 export function Layout() {
   const { user, logout } = useAuth()
-  const { unreadTotal } = useChat()
+  const unreadTotal = useUnreadTotal()
   const { pathname } = useLocation()
 
   return (
@@ -97,7 +97,9 @@ export function Layout() {
               <Icon size={18} />
               <span>{label}</span>
               {badge && unreadTotal > 0 && (
-                <span className="nav-unread-badge">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
+                <span className="nav-unread-badge" aria-label={`${unreadTotal} 条未读消息`}>
+                  {unreadTotal > 99 ? '99+' : unreadTotal}
+                </span>
               )}
             </NavLink>
           ))}
@@ -131,7 +133,10 @@ export function Layout() {
             <span className="bottom-link-icon-wrap">
               <Icon size={18} />
               {badge && unreadTotal > 0 && (
-                <span className="nav-unread-badge nav-unread-badge-dot">
+                <span
+                  className="nav-unread-badge nav-unread-badge-dot"
+                  aria-label={`${unreadTotal} 条未读消息`}
+                >
                   {unreadTotal > 99 ? '99+' : unreadTotal}
                 </span>
               )}
@@ -139,6 +144,9 @@ export function Layout() {
             <span>{label}</span>
           </NavLink>
         ))}
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
+          {unreadTotal > 0 ? `有 ${unreadTotal} 条未读消息` : '没有未读消息'}
+        </span>
       </nav>
     </div>
   )

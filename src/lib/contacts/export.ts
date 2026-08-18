@@ -1,4 +1,4 @@
-import type { Contact } from '../types/contact'
+import type { Contact } from '../../types/contact'
 import { exportContactsToCsv } from './csv-import'
 import { exportContactsToVCard } from './vcard'
 

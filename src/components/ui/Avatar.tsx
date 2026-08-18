@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAvatarGradient, getAvatarInitials } from '../../lib/avatar-color'
+import { getAvatarGradient, getAvatarInitials } from '@/lib/ui/avatar-color'
 
 interface AvatarProps {
   name: string

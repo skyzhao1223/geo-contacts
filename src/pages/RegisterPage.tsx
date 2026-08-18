@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Map, Users, Sparkles } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/lib/api'
-import { hasZhaoskyAuthBridge, redirectToSiteLogin } from '@/lib/site-auth'
+import { hasZhaoskyAuthBridge, redirectToSiteLogin } from '@/lib/auth/site-auth'
 import { AuthLayout } from '@/components/auth'
 
 export function RegisterPage() {

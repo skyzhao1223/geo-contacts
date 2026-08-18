@@ -12,6 +12,7 @@ export interface UserProfile {
   lastSeenAt?: number | null
   online?: boolean
   createdAt?: number
+  pushShowPreview?: boolean
 }
 
 export interface FriendItem {

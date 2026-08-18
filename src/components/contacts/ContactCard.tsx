@@ -1,8 +1,8 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, ChevronRight } from 'lucide-react'
 import type { Contact } from '@/types/contact'
-import { usePresenceState } from '@/context/PresenceContext'
-import { getLinkedOnline } from '@/lib/presence'
+import { useLinkedOnline } from '@/context/PresenceContext'
 import { Avatar } from '@/components/ui/Avatar'
 import { OnlineBadge } from '@/components/ui/OnlineBadge'
 
@@ -25,14 +25,13 @@ function getSubtitle(contact: Contact): string {
   return ''
 }
 
-export function ContactCard({
+export const ContactCard = memo(function ContactCard({
   contact,
   selectionMode = false,
   selected = false,
   onToggleSelect,
 }: ContactCardProps) {
-  const presence = usePresenceState()
-  const online = getLinkedOnline(presence, contact.linkedUserId)
+  const online = useLinkedOnline(contact.linkedUserId)
   const subtitle = getSubtitle(contact)
 
   const content = (
@@ -80,4 +79,4 @@ export function ContactCard({
       {content}
     </Link>
   )
-}
+})

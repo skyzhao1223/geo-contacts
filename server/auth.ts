@@ -1,7 +1,17 @@
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'geo-contacts-dev-secret-change-me'
+const isProd = process.env.NODE_ENV === 'production'
+const JWT_SECRET = process.env.JWT_SECRET ?? (isProd ? '' : 'geo-contacts-dev-secret-change-me')
+
+if (isProd && !process.env.JWT_SECRET) {
+  console.error('[auth] 生产环境必须设置 JWT_SECRET 环境变量')
+  process.exit(1)
+}
+
+if (!isProd && !process.env.JWT_SECRET) {
+  console.warn('[auth] 使用开发默认 JWT_SECRET，生产请务必设置环境变量')
+}
 
 export interface AuthPayload {
   userId: string

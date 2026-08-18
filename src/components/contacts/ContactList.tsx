@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Search, Users } from 'lucide-react'
 import { ContactCard } from './ContactCard'
 import { AlphabetIndex } from './AlphabetIndex'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { getIndexLetters, getNameIndexLetter } from '@/lib/name-index'
+import { getIndexLetters, getNameIndexLetter } from '@/lib/contacts/name-index'
+import { SYSTEM_FAMILY_TAG } from '@/lib/family/system-tags'
 import type { Contact } from '@/types/contact'
 
 interface ContactListProps {
@@ -18,6 +20,13 @@ interface ContactListProps {
   selectedIds?: Set<string>
   onToggleSelect?: (id: string) => void
 }
+
+type FlatRow =
+  | { type: 'header'; letter: string; key: string }
+  | { type: 'contact'; contact: Contact; letter: string; key: string }
+
+const HEADER_HEIGHT = 36
+const CONTACT_HEIGHT = 76
 
 export function ContactList({
   contacts,
@@ -54,68 +63,98 @@ export function ContactList({
     })
   }, [contacts])
 
+  const flatRows = useMemo<FlatRow[]>(() => {
+    const rows: FlatRow[] = []
+    for (const [letter, items] of grouped) {
+      rows.push({ type: 'header', letter, key: `h-${letter}` })
+      for (const contact of items) {
+        rows.push({
+          type: 'contact',
+          contact,
+          letter,
+          key: contact.id,
+        })
+      }
+    }
+    return rows
+  }, [grouped])
+
+  const letterOffsets = useMemo(() => {
+    const map = new Map<string, number>()
+    let offset = 0
+    for (const row of flatRows) {
+      if (row.type === 'header') {
+        map.set(row.letter, offset)
+        offset += HEADER_HEIGHT
+      } else {
+        offset += CONTACT_HEIGHT
+      }
+    }
+    return map
+  }, [flatRows])
+
   const availableLetters = useMemo(
     () => getIndexLetters(new Set(grouped.map(([letter]) => letter))),
     [grouped],
   )
 
-  const scrollToLetter = useCallback((letter: string) => {
-    const root = scrollRef.current
-    const target = document.getElementById(`contact-index-${letter}`)
-    if (!root || !target) return
+  const virtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (index) =>
+      flatRows[index]?.type === 'header' ? HEADER_HEIGHT : CONTACT_HEIGHT,
+    overscan: 8,
+  })
 
-    const rootRect = root.getBoundingClientRect()
-    const targetRect = target.getBoundingClientRect()
-    const nextTop = root.scrollTop + (targetRect.top - rootRect.top) - 4
-    root.scrollTo({ top: nextTop, behavior: 'smooth' })
-    setActiveLetter(letter)
-  }, [])
+  const scrollToLetter = useCallback(
+    (letter: string) => {
+      const offset = letterOffsets.get(letter)
+      const root = scrollRef.current
+      if (offset == null || !root) return
+      root.scrollTo({ top: offset, behavior: 'smooth' })
+      setActiveLetter(letter)
+    },
+    [letterOffsets],
+  )
 
   useEffect(() => {
     const root = scrollRef.current
-    if (!root || grouped.length === 0) return
+    if (!root || flatRows.length === 0) return
 
-    const headers = grouped
-      .map(([letter]) => document.getElementById(`contact-index-${letter}`))
-      .filter((el): el is HTMLElement => el !== null)
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-
-        const first = visible[0]?.target.getAttribute('data-letter')
-        if (first) setActiveLetter(first)
-      },
-      {
-        root,
-        rootMargin: '-8% 0px -70% 0px',
-        threshold: [0, 0.25, 1],
-      },
-    )
-
-    for (const header of headers) {
-      observer.observe(header)
+    const onScroll = () => {
+      const scrollTop = root.scrollTop
+      let current: string | null = null
+      for (const [letter, offset] of letterOffsets) {
+        if (offset <= scrollTop + 8) current = letter
+        else break
+      }
+      if (current) setActiveLetter(current)
     }
 
-    return () => observer.disconnect()
-  }, [grouped])
+    onScroll()
+    root.addEventListener('scroll', onScroll, { passive: true })
+    return () => root.removeEventListener('scroll', onScroll)
+  }, [flatRows.length, letterOffsets])
 
   return (
     <section className="panel contact-list-panel">
       <div className="contact-list-toolbar">
         <div className="search-box">
-          <Search size={18} />
+          <Search size={18} aria-hidden />
+          <label className="sr-only" htmlFor="contact-search">
+            搜索联系人
+          </label>
           <input
+            id="contact-search"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="搜索姓名、城市、公司、标签..."
+            aria-label="搜索联系人"
           />
         </div>
 
         {tags.length > 0 && (
-          <div className="tag-filter-row">
+          <div className="tag-filter-row" role="group" aria-label="按标签筛选">
             <button
               type="button"
               className={`filter-chip ${selectedTag === null ? 'filter-chip-active' : ''}`}
@@ -127,7 +166,7 @@ export function ContactList({
               <button
                 key={tag}
                 type="button"
-                className={`filter-chip ${selectedTag === tag ? 'filter-chip-active' : ''}`}
+                className={`filter-chip ${tag === SYSTEM_FAMILY_TAG ? 'filter-chip-system' : ''} ${selectedTag === tag ? 'filter-chip-active' : ''}`}
                 onClick={() => onTagChange(tag)}
               >
                 {tag}
@@ -138,7 +177,7 @@ export function ContactList({
       </div>
 
       {loading ? (
-        <div className="empty-state">
+        <div className="empty-state" role="status" aria-label="加载中">
           <div className="loading-spinner" />
         </div>
       ) : contacts.length === 0 ? (
@@ -160,29 +199,53 @@ export function ContactList({
       ) : (
         <div className="contact-list-main">
           <div ref={scrollRef} className="contact-list-scroll">
-            <div className="contact-groups">
-              {grouped.map(([letter, items]) => (
-                <div key={letter} className="contact-group">
+            <div
+              className="contact-groups contact-groups-virtual"
+              style={{
+                height: virtualizer.getTotalSize(),
+                position: 'relative',
+                width: '100%',
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const row = flatRows[virtualRow.index]
+                if (!row) return null
+
+                return (
                   <div
-                    id={`contact-index-${letter}`}
-                    data-letter={letter}
-                    className="group-letter"
+                    key={row.key}
+                    data-index={virtualRow.index}
+                    ref={virtualizer.measureElement}
+                    className={
+                      row.type === 'header' ? 'contact-group-virtual-header' : 'contact-group-virtual-item'
+                    }
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
                   >
-                    {letter}
-                  </div>
-                  <div className="group-list">
-                    {items.map((contact) => (
+                    {row.type === 'header' ? (
+                      <div
+                        id={`contact-index-${row.letter}`}
+                        data-letter={row.letter}
+                        className="group-letter"
+                      >
+                        {row.letter}
+                      </div>
+                    ) : (
                       <ContactCard
-                        key={contact.id}
-                        contact={contact}
+                        contact={row.contact}
                         selectionMode={selectionMode}
-                        selected={selectedIds?.has(contact.id) ?? false}
+                        selected={selectedIds?.has(row.contact.id) ?? false}
                         onToggleSelect={onToggleSelect}
                       />
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 

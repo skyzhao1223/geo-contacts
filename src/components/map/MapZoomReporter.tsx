@@ -1,23 +1,24 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMap, useMapEvents } from 'react-leaflet'
-import { regionLevelForZoom, type RegionLevel } from '@/lib/region-cluster'
+import { regionLevelForZoom, type RegionLevel } from '@/lib/geo/region-cluster'
 
 interface MapZoomReporterProps {
   onZoomChange: (zoom: number, level: RegionLevel) => void
 }
 
-/** 把当前缩放与地区聚合级别上报给外层 UI */
+/** 把当前缩放与地区聚合级别上报给外层 UI（仅 zoomend） */
 export function MapZoomReporter({ onZoomChange }: MapZoomReporterProps) {
   const map = useMap()
+  const onZoomChangeRef = useRef(onZoomChange)
+  onZoomChangeRef.current = onZoomChange
 
   const report = () => {
     const zoom = map.getZoom()
-    onZoomChange(zoom, regionLevelForZoom(zoom))
+    onZoomChangeRef.current(zoom, regionLevelForZoom(zoom))
   }
 
   useMapEvents({
     zoomend: report,
-    zoom: report,
   })
 
   useEffect(() => {

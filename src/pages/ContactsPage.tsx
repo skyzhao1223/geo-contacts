@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { BatchBar, ContactList, MergePanel, QuickActions } from '@/components/contacts'
 import { PageHeader } from '@/components/ui'
 import { useContacts } from '@/context/ContactsContext'
-import { dismissDemoHint, shouldShowDemoHint } from '@/lib/seed-demo-data'
+import { findDuplicateGroups } from '@/lib/contacts/dedup'
+import { dismissDemoHint, shouldShowDemoHint } from '@/lib/demo/seed-demo-data'
 
 export function ContactsPage() {
   const {
     filteredContacts,
-    duplicateGroups,
     contacts,
     loading,
     search,
@@ -22,6 +22,11 @@ export function ContactsPage() {
     addTagsToContacts,
     removeTagFromContacts,
   } = useContacts()
+
+  const duplicateGroups = useMemo(
+    () => findDuplicateGroups(contacts),
+    [contacts],
+  )
 
   const [showDemoHint, setShowDemoHint] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)

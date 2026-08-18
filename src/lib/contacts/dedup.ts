@@ -1,4 +1,4 @@
-import type { Contact, DuplicateGroup } from '../types/contact'
+import type { Contact, DuplicateGroup } from '../../types/contact'
 import {
   normalizeEmail,
   normalizeName,
@@ -8,16 +8,16 @@ import {
 
 interface ContactIndex {
   contact: Contact
-  phoneKeys: Set<string>
-  emailKeys: Set<string>
+  phoneKeys: string[]
+  emailKeys: string[]
   nameKey: string
 }
 
 function buildIndex(contact: Contact): ContactIndex {
   return {
     contact,
-    phoneKeys: new Set(contact.phones.map(normalizePhone).filter(Boolean)),
-    emailKeys: new Set(contact.emails.map(normalizeEmail).filter(Boolean)),
+    phoneKeys: contact.phones.map(normalizePhone).filter(Boolean),
+    emailKeys: contact.emails.map(normalizeEmail).filter(Boolean),
     nameKey: normalizeName(contact.name),
   }
 }
@@ -45,6 +45,19 @@ class UnionFind {
   }
 }
 
+function phoneLookupKeys(phone: string): string[] {
+  if (!phone) return []
+  const keys = [phone]
+  if (phone.length >= 8) keys.push(`suf:${phone.slice(-8)}`)
+  return keys
+}
+
+function addToIndex(map: Map<string, number[]>, key: string, index: number): void {
+  const list = map.get(key)
+  if (list) list.push(index)
+  else map.set(key, [index])
+}
+
 function sharePhone(a: ContactIndex, b: ContactIndex): boolean {
   for (const phone of a.phoneKeys) {
     for (const other of b.phoneKeys) {
@@ -55,10 +68,8 @@ function sharePhone(a: ContactIndex, b: ContactIndex): boolean {
 }
 
 function shareEmail(a: ContactIndex, b: ContactIndex): boolean {
-  for (const email of a.emailKeys) {
-    if (b.emailKeys.has(email)) return true
-  }
-  return false
+  const right = new Set(b.emailKeys)
+  return a.emailKeys.some((email) => right.has(email))
 }
 
 function similarName(a: ContactIndex, b: ContactIndex): boolean {
@@ -70,26 +81,76 @@ function similarName(a: ContactIndex, b: ContactIndex): boolean {
   return false
 }
 
+function hasContactKeys(index: ContactIndex): boolean {
+  return index.phoneKeys.length > 0 || index.emailKeys.length > 0
+}
+
+/**
+ * 通过 phone / email / name 倒排索引收集候选对，再精确比对。
+ * 避免全量 O(n²) 两两比较。
+ */
 export function findDuplicateGroups(contacts: Contact[]): DuplicateGroup[] {
   const indexes = contacts.map(buildIndex)
   const uf = new UnionFind()
 
-  for (let i = 0; i < indexes.length; i++) {
-    for (let j = i + 1; j < indexes.length; j++) {
-      const left = indexes[i]
-      const right = indexes[j]
+  const phoneIndex = new Map<string, number[]>()
+  const emailIndex = new Map<string, number[]>()
+  const nameIndex = new Map<string, number[]>()
+  const namePrefixIndex = new Map<string, number[]>()
 
-      const isDuplicate =
-        sharePhone(left, right) ||
-        shareEmail(left, right) ||
-        (similarName(left, right) &&
-          (left.phoneKeys.size > 0 || left.emailKeys.size > 0))
+  indexes.forEach((item, i) => {
+    for (const phone of item.phoneKeys) {
+      for (const key of phoneLookupKeys(phone)) {
+        addToIndex(phoneIndex, key, i)
+      }
+    }
+    for (const email of item.emailKeys) {
+      addToIndex(emailIndex, email, i)
+    }
+    if (item.nameKey) {
+      addToIndex(nameIndex, item.nameKey, i)
+      const prefix = item.nameKey.slice(0, 2)
+      if (prefix) addToIndex(namePrefixIndex, prefix, i)
+    }
+  })
 
-      if (isDuplicate) {
-        uf.union(left.contact.id, right.contact.id)
+  const seenPairs = new Set<string>()
+
+  const considerPair = (i: number, j: number) => {
+    if (i === j) return
+    const a = Math.min(i, j)
+    const b = Math.max(i, j)
+    const key = `${a}:${b}`
+    if (seenPairs.has(key)) return
+    seenPairs.add(key)
+
+    const left = indexes[a]
+    const right = indexes[b]
+    const isDuplicate =
+      sharePhone(left, right) ||
+      shareEmail(left, right) ||
+      (similarName(left, right) && hasContactKeys(left))
+
+    if (isDuplicate) {
+      uf.union(left.contact.id, right.contact.id)
+    }
+  }
+
+  const scanBuckets = (map: Map<string, number[]>) => {
+    for (const bucket of map.values()) {
+      if (bucket.length < 2) continue
+      for (let i = 0; i < bucket.length; i++) {
+        for (let j = i + 1; j < bucket.length; j++) {
+          considerPair(bucket[i], bucket[j])
+        }
       }
     }
   }
+
+  scanBuckets(phoneIndex)
+  scanBuckets(emailIndex)
+  scanBuckets(nameIndex)
+  scanBuckets(namePrefixIndex)
 
   const groups = new Map<string, string[]>()
   for (const contact of contacts) {

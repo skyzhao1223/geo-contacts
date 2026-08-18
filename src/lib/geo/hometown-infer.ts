@@ -1,7 +1,7 @@
 import type { Contact, Location } from '@/types/contact'
 import { locationToText } from '@/types/contact'
 import type { Kinship, ParentRole } from '@/types/kinship'
-import { getParents } from '@/lib/family-tree'
+import { getParents } from '@/lib/family/family-tree'
 
 export interface HometownInference {
   location: Location

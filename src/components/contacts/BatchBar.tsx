@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CheckSquare, Download, Tag, Trash2, X, XCircle } from 'lucide-react'
 import type { Contact } from '@/types/contact'
-import { exportCsv, exportJsonBackup, exportVCard } from '@/lib/export'
+import { exportCsv, exportJsonBackup, exportVCard } from '@/lib/contacts/export'
 
 type TagDialogMode = 'add' | 'remove' | null
 type ExportFormat = 'vcard' | 'csv' | 'json'

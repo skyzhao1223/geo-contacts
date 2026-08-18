@@ -1,6 +1,6 @@
-import type { Location } from '../types/contact'
-import { locationToText } from '../types/contact'
-import { getGeocodeCache, setGeocodeCache } from '../db/database'
+import type { Location } from '../../types/contact'
+import { locationToText } from '../../types/contact'
+import { getGeocodeCache, setGeocodeCache } from '../../local-db/database'
 
 export type MapProvider = 'osm' | 'amap'
 
@@ -84,6 +84,13 @@ const COUNTRY_CODES: Record<string, string> = {
   阿联酋: 'ae',
 }
 
+export class GeocodeCancelledError extends Error {
+  constructor() {
+    super('地理编码已取消')
+    this.name = 'GeocodeCancelledError'
+  }
+}
+
 function resolveCountryCode(country?: string): string | undefined {
   if (!country) return undefined
   const key = country.trim().toLowerCase()
@@ -99,19 +106,42 @@ function cacheKey(location: Location): string {
   return `v2:${buildQuery(location).toLowerCase()}`
 }
 
-async function waitForRateLimit(): Promise<void> {
+function assertNotAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new GeocodeCancelledError()
+}
+
+async function waitForRateLimit(signal?: AbortSignal): Promise<void> {
   const now = Date.now()
   const elapsed = now - lastRequestAt
   if (elapsed < 1100) {
-    await new Promise((resolve) => setTimeout(resolve, 1100 - elapsed))
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort)
+        resolve()
+      }, 1100 - elapsed)
+      const onAbort = () => {
+        clearTimeout(timer)
+        reject(new GeocodeCancelledError())
+      }
+      if (signal?.aborted) {
+        clearTimeout(timer)
+        reject(new GeocodeCancelledError())
+        return
+      }
+      signal?.addEventListener('abort', onAbort, { once: true })
+    })
   }
+  assertNotAborted(signal)
   lastRequestAt = Date.now()
 }
 
 export async function geocodeLocation(
   location: Location,
   provider: MapProvider = 'osm',
+  signal?: AbortSignal,
 ): Promise<Location> {
+  assertNotAborted(signal)
+
   const query = buildQuery(location)
   if (!query) return location
 
@@ -130,11 +160,12 @@ export async function geocodeLocation(
     }
   }
 
+  // 高德尚未接入，保持原样避免假成功
   if (provider === 'amap') {
     return location
   }
 
-  await waitForRateLimit()
+  await waitForRateLimit(signal)
 
   const params = new URLSearchParams({
     q: query,
@@ -143,13 +174,13 @@ export async function geocodeLocation(
     addressdetails: '1',
   })
 
-  // 有明确国家时优先限定，提高命中率；否则全球检索
   const countryCode = resolveCountryCode(location.country)
   if (countryCode) {
     params.set('countrycodes', countryCode)
   }
 
   const response = await fetch(`${NOMINATIM_URL}?${params.toString()}`, {
+    signal,
     headers: {
       Accept: 'application/json',
       'Accept-Language': 'en,zh-CN;q=0.9,zh;q=0.8',
@@ -157,11 +188,11 @@ export async function geocodeLocation(
   })
 
   if (!response.ok) {
-    // 若带国家码失败，再试一次全球检索
     if (countryCode) {
       params.delete('countrycodes')
-      await waitForRateLimit()
+      await waitForRateLimit(signal)
       const retry = await fetch(`${NOMINATIM_URL}?${params.toString()}`, {
+        signal,
         headers: {
           Accept: 'application/json',
           'Accept-Language': 'en,zh-CN;q=0.9,zh;q=0.8',
@@ -212,8 +243,8 @@ export async function geocodeContactsLocations<T extends {
   contacts: T[],
   provider: MapProvider = 'osm',
   onProgress?: (done: number, total: number) => void,
-): Promise<T[]> {
-  const updated: T[] = []
+  signal?: AbortSignal,
+): Promise<{ contacts: T[]; changed: T[] }> {
   const tasks: Array<{ index: number; field: keyof Pick<T, 'birthplace' | 'hometown' | 'currentLocation'> }> = []
 
   contacts.forEach((contact, index) => {
@@ -226,19 +257,36 @@ export async function geocodeContactsLocations<T extends {
   })
 
   const result = contacts.map((contact) => ({ ...contact }))
+  const changedIndexes = new Set<number>()
   let done = 0
 
   for (const task of tasks) {
+    assertNotAborted(signal)
     const current = result[task.index][task.field] as Location | undefined
     if (!current) continue
-    const geocoded = await geocodeLocation(current, provider)
-    result[task.index] = {
-      ...result[task.index],
-      [task.field]: geocoded,
+    try {
+      const geocoded = await geocodeLocation(current, provider, signal)
+      const before = current
+      result[task.index] = {
+        ...result[task.index],
+        [task.field]: geocoded,
+      }
+      if (
+        geocoded.latitude !== before.latitude ||
+        geocoded.longitude !== before.longitude ||
+        geocoded.geocodedAt !== before.geocodedAt
+      ) {
+        changedIndexes.add(task.index)
+      }
+    } catch (error) {
+      if (error instanceof GeocodeCancelledError) throw error
     }
     done += 1
     onProgress?.(done, tasks.length)
   }
 
-  return result.length > 0 ? result : updated
+  return {
+    contacts: result,
+    changed: [...changedIndexes].map((index) => result[index]),
+  }
 }

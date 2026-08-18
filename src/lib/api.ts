@@ -40,8 +40,12 @@ export function setToken(token: string | null) {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken()
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  tokenOverride?: string | null,
+): Promise<T> {
+  const token = tokenOverride === undefined ? getToken() : tokenOverride
   const headers = new Headers(init?.headers)
   headers.set('Content-Type', 'application/json')
   if (token) {
@@ -186,6 +190,42 @@ export const api = {
 
   getUnreadCount() {
     return request<{ unreadCount: number }>('api/messages/unread-count')
+  },
+
+  getVapidPublicKey() {
+    return request<{ publicKey: string; configured: boolean }>('api/push/vapid-public-key')
+  },
+
+  pushStatus() {
+    return request<{ configured: boolean; pushShowPreview: boolean }>('api/push/status')
+  },
+
+  subscribePush(subscription: {
+    endpoint: string
+    keys: { p256dh: string; auth: string }
+  }) {
+    return request<{ ok: boolean }>('api/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+    })
+  },
+
+  unsubscribePush(endpoint: string, tokenOverride?: string) {
+    return request<{ ok: boolean }>(
+      'api/push/subscribe',
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ endpoint }),
+      },
+      tokenOverride,
+    )
+  },
+
+  updatePushPreferences(pushShowPreview: boolean) {
+    return request<{ ok: boolean; pushShowPreview: boolean }>('api/push/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ pushShowPreview }),
+    })
   },
 }
 

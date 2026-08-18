@@ -68,6 +68,18 @@ body {
 
 h1, h2, h3, p { margin: 0; }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 a { color: inherit; text-decoration: none; }
 
 button, input, select, textarea { font: inherit; }
@@ -785,6 +797,19 @@ body:has(.page-stack-contacts) {
   min-width: 0;
 }
 
+.contact-groups-virtual {
+  display: block;
+  gap: 0;
+}
+
+.contact-group-virtual-header {
+  padding-bottom: 8px;
+}
+
+.contact-group-virtual-item {
+  padding-bottom: 8px;
+}
+
 .group-letter {
   position: sticky;
   top: 0;
@@ -1482,6 +1507,15 @@ body:has(.page-stack-contacts) {
 }
 
 .map-tag-filter { margin-bottom: 8px; }
+
+.filter-chip-system {
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--border));
+  color: var(--brand);
+}
+
+.filter-chip-system.filter-chip-active {
+  background: color-mix(in srgb, var(--brand) 18%, var(--surface));
+}
 
 .map-frame {
   width: 100%;
@@ -3258,6 +3292,12 @@ body:has(.page-stack-contacts) {
   max-height: min(48dvh, 420px);
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+.chat-load-older {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
 }
 
 .chat-bubble {

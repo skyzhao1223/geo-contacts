@@ -1,5 +1,5 @@
-import type { Contact } from '../types/contact'
-import { createEmptyContact } from '../types/contact'
+import type { Contact } from '../../types/contact'
+import { createEmptyContact } from '../../types/contact'
 
 function decodeVCardValue(value: string): string {
   return value

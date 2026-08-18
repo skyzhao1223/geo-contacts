@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { LETTERS } from '@/lib/name-index'
+import { LETTERS } from '@/lib/contacts/name-index'
 
 interface AlphabetIndexProps {
   letters: string[]

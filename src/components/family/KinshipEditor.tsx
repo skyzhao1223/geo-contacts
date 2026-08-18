@@ -4,7 +4,7 @@ import { GitBranchPlus, Trash2, UserRound, Heart, Baby } from 'lucide-react'
 import type { Contact } from '@/types/contact'
 import type { ParentRole } from '@/types/kinship'
 import { useKinships } from '@/context/KinshipsContext'
-import { getChildren, getParents, getSpouses } from '@/lib/family-tree'
+import { getChildren, getParents, getSpouses } from '@/lib/family/family-tree'
 import { PersonPicker } from './PersonPicker'
 import { Avatar } from '@/components/ui/Avatar'
 

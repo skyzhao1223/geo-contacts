@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
+import { useMemo } from 'react'
 import { Heart, Users } from 'lucide-react'
 import type { Contact } from '@/types/contact'
 import { locationToText } from '@/types/contact'
 import type { Kinship } from '@/types/kinship'
-import { buildFamilyTree, type FamilyTree } from '@/lib/family-tree'
+import { buildFamilyTree, type FamilyTree } from '@/lib/family/family-tree'
 import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui'
 
@@ -123,8 +124,14 @@ function PersonCard({
 }
 
 export function FamilyTreeView({ rootId, contacts, kinships }: FamilyTreeViewProps) {
-  const tree = buildFamilyTree(rootId, kinships, contacts)
-  const sortedGens = [...tree.generations.keys()].sort((a, b) => a - b)
+  const tree = useMemo(
+    () => buildFamilyTree(rootId, kinships, contacts),
+    [rootId, kinships, contacts],
+  )
+  const sortedGens = useMemo(
+    () => [...tree.generations.keys()].sort((a, b) => a - b),
+    [tree],
+  )
 
   const rootNode = tree.nodes.get(rootId)
   const hasRelations =

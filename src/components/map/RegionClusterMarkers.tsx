@@ -1,11 +1,11 @@
 import { Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { createRegionClusterIcon } from '@/lib/map-marker'
+import { createRegionClusterIcon } from '@/lib/geo/map-marker'
 import {
   zoomAfterRegionExpand,
   type RegionCluster,
   type RegionLevel,
-} from '@/lib/region-cluster'
+} from '@/lib/geo/region-cluster'
 
 interface RegionClusterMarkersProps {
   clusters: RegionCluster[]

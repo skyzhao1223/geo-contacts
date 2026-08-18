@@ -1,4 +1,4 @@
-import type { Location } from '../types/contact'
+import type { Location } from '../../types/contact'
 
 export type RegionLevel = 'country' | 'province' | 'city' | 'person'
 

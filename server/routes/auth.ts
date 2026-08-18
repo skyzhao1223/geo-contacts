@@ -27,6 +27,7 @@ function serializeUser(row: {
   current_location: string | null
   last_seen_at: number | null
   created_at: number
+  push_show_preview?: number
 }) {
   return {
     id: row.id,
@@ -39,6 +40,7 @@ function serializeUser(row: {
     currentLocation: parseLocation(row.current_location),
     lastSeenAt: row.last_seen_at,
     createdAt: row.created_at,
+    pushShowPreview: row.push_show_preview !== 0,
   }
 }
 
@@ -77,7 +79,7 @@ authRouter.post('/register', (req, res) => {
   const token = signToken({ userId: id, email: email.trim().toLowerCase() })
   const user = db
     .prepare(
-      `SELECT id, email, display_name, avatar, bio, birthplace, hometown, current_location, last_seen_at, created_at
+      `SELECT id, email, display_name, avatar, bio, birthplace, hometown, current_location, last_seen_at, created_at, push_show_preview
        FROM users WHERE id = ?`,
     )
     .get(id)
@@ -145,7 +147,7 @@ authRouter.post('/sso', async (req, res) => {
 authRouter.get('/me', authMiddleware, (req, res) => {
   const user = db
     .prepare(
-      `SELECT id, email, display_name, avatar, bio, birthplace, hometown, current_location, last_seen_at, created_at
+      `SELECT id, email, display_name, avatar, bio, birthplace, hometown, current_location, last_seen_at, created_at, push_show_preview
        FROM users WHERE id = ?`,
     )
     .get(req.auth!.userId)
@@ -207,7 +209,7 @@ authRouter.put('/profile', authMiddleware, (req, res) => {
 
   const user = db
     .prepare(
-      `SELECT id, email, display_name, avatar, bio, birthplace, hometown, current_location, last_seen_at, created_at
+      `SELECT id, email, display_name, avatar, bio, birthplace, hometown, current_location, last_seen_at, created_at, push_show_preview
        FROM users WHERE id = ?`,
     )
     .get(req.auth!.userId)
