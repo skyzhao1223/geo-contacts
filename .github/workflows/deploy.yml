@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: skyzhao1223/aws-infra-dashboard
-          ref: ${{ github.event.inputs.dashboard_ref || 'cursor/independent-project-deploy-f186' }}
+          ref: ${{ github.event.inputs.dashboard_ref || 'main' }}
           path: dashboard
           token: ${{ secrets.DASHBOARD_CHECKOUT_TOKEN }}
 
