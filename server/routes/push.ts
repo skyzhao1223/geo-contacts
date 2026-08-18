@@ -10,7 +10,7 @@ import {
 
 export const pushRouter = Router()
 
-pushRouter.get('/vapid-public-key', authMiddleware, (_req, res) => {
+pushRouter.get('/vapid-public-key', (_req, res) => {
   const key = getVapidPublicKey()
   if (!key) {
     res.status(503).json({ error: '推送未配置', configured: false })
