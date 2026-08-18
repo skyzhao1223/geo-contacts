@@ -1,0 +1,53 @@
+# Deploy this repo only → /opt/geo-contacts (https://zhaosky.cn/geo-contacts/)
+#
+# Secrets (Environment "production"):
+#   DEPLOY_SSH_KEY, MARZBAN_SSH_HOST, DASHBOARD_CHECKOUT_TOKEN
+# Optional: MARZBAN_SSH_USER, MARZBAN_PUBLIC_URL
+#
+# Inline job (not workflow_call): this repo is public and cannot `uses:` a
+# private reusable workflow from aws-infra-dashboard.
+name: Deploy geo-contacts
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dashboard_ref:
+        description: "aws-infra-dashboard ref for scripts/patches"
+        required: false
+        default: main
+
+concurrency:
+  group: deploy-geo-contacts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout geo-contacts
+        uses: actions/checkout@v5
+        with:
+          path: project
+
+      - name: Checkout dashboard (deploy scripts + patches)
+        uses: actions/checkout@v5
+        with:
+          repository: skyzhao1223/aws-infra-dashboard
+          ref: ${{ github.event.inputs.dashboard_ref || 'main' }}
+          path: dashboard
+          token: ${{ secrets.DASHBOARD_CHECKOUT_TOKEN }}
+
+      - name: Deploy geo-contacts
+        working-directory: dashboard
+        env:
+          CI: true
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          MARZBAN_SSH_HOST: ${{ secrets.MARZBAN_SSH_HOST }}
+          MARZBAN_SSH_USER: ${{ secrets.MARZBAN_SSH_USER }}
+          MARZBAN_PUBLIC_URL: ${{ secrets.MARZBAN_PUBLIC_URL }}
+          DEPLOY_CALLER_PWD: ${{ github.workspace }}/project
+          LOCAL_GEO_CONTACTS_ROOT: ${{ github.workspace }}/project
+        run: bash scripts/deploy-project.sh geo-contacts
